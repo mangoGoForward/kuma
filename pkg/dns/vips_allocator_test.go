@@ -3,6 +3,7 @@ package dns_test
 import (
 	"context"
 
+	"github.com/kumahq/kuma/pkg/test/resources/builders"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -72,13 +73,25 @@ var _ = Describe("VIP Allocator", func() {
 		err = rm.Create(context.Background(), mesh.NewMeshResource(), store.CreateByKey("mesh-2", model.NoMesh))
 		Expect(err).ToNot(HaveOccurred())
 
-		err = rm.Create(context.Background(), &mesh.DataplaneResource{Spec: dp("backend")}, store.CreateByKey("dp-1", "mesh-1"))
+		err = builders.Dataplane().
+			WithName("dp-1").
+			WithMesh("mesh-1").
+			WithServices("backend").
+			Create(rm)
 		Expect(err).ToNot(HaveOccurred())
 
-		err = rm.Create(context.Background(), &mesh.DataplaneResource{Spec: dp("frontend")}, store.CreateByKey("dp-2", "mesh-1"))
+		err = builders.Dataplane().
+			WithName("dp-2").
+			WithMesh("mesh-1").
+			WithServices("frontend").
+			Create(rm)
 		Expect(err).ToNot(HaveOccurred())
 
-		err = rm.Create(context.Background(), &mesh.DataplaneResource{Spec: dp("web")}, store.CreateByKey("dp-3", "mesh-2"))
+		err = builders.Dataplane().
+			WithName("dp-3").
+			WithMesh("mesh-2").
+			WithServices("web").
+			Create(rm)
 		Expect(err).ToNot(HaveOccurred())
 
 		allocator, err = dns.NewVIPsAllocator(rm, cm, true, "240.0.0.0/24", r)
@@ -122,7 +135,11 @@ var _ = Describe("VIP Allocator", func() {
 		err = persistence.Set("mesh-1", vobv)
 		Expect(err).ToNot(HaveOccurred())
 
-		err = rm.Create(context.Background(), &mesh.DataplaneResource{Spec: dp("database")}, store.CreateByKey("dp-3", "mesh-1"))
+		err = builders.Dataplane().
+			WithName("dp-3").
+			WithMesh("mesh-1").
+			WithServices("database").
+			Create(rm)
 		Expect(err).ToNot(HaveOccurred())
 
 		// when
@@ -152,7 +169,11 @@ var _ = Describe("VIP Allocator", func() {
 		err = errAllocator.CreateOrUpdateVIPConfig("mesh-1")
 		Expect(err).ToNot(HaveOccurred())
 
-		err = rm.Create(context.Background(), &mesh.DataplaneResource{Spec: dp("database")}, store.CreateByKey("dp-3", "mesh-1"))
+		err = builders.Dataplane().
+			WithName("dp-3").
+			WithMesh("mesh-1").
+			WithServices("database").
+			Create(rm)
 		Expect(err).ToNot(HaveOccurred())
 
 		err = errAllocator.CreateOrUpdateVIPConfig("mesh-1")
@@ -168,10 +189,18 @@ var _ = Describe("VIP Allocator", func() {
 		err = errAllocator.CreateOrUpdateVIPConfigs()
 		Expect(err).ToNot(HaveOccurred())
 
-		err = rm.Create(context.Background(), &mesh.DataplaneResource{Spec: dp("database")}, store.CreateByKey("dp-3", "mesh-1"))
+		err = builders.Dataplane().
+			WithName("dp-3").
+			WithMesh("mesh-1").
+			WithServices("database").
+			Create(rm)
 		Expect(err).ToNot(HaveOccurred())
 
-		err = rm.Create(context.Background(), &mesh.DataplaneResource{Spec: dp("payment")}, store.CreateByKey("dp-4", "mesh-2"))
+		err = builders.Dataplane().
+			WithName("dp-4").
+			WithMesh("mesh-2").
+			WithServices("payment").
+			Create(rm)
 		Expect(err).ToNot(HaveOccurred())
 
 		err = errAllocator.CreateOrUpdateVIPConfigs()
@@ -217,7 +246,9 @@ var _ = DescribeTable("outboundView",
 	Entry("no resource", outboundViewTestCase{whenMesh: "mesh", thenHostnameEntries: []vips.HostnameEntry{}}),
 	Entry("dp with multiple services", outboundViewTestCase{
 		givenResources: map[model.ResourceKey]model.Resource{
-			model.WithMesh("mesh", "dp1"): &mesh.DataplaneResource{Spec: dp("service1", "service2")},
+			model.WithMesh("mesh", "dp1"): builders.Dataplane().
+				WithName("dp1").WithMesh("mesh-1").
+				WithServices("service1", "service2"),
 		},
 		whenMesh:            "mesh",
 		thenHostnameEntries: []vips.HostnameEntry{vips.NewServiceEntry("service1"), vips.NewServiceEntry("service2")},
@@ -294,7 +325,9 @@ var _ = DescribeTable("outboundView",
 		givenResources: map[model.ResourceKey]model.Resource{
 			model.WithMesh("mesh", "dp1-a"): &mesh.DataplaneResource{Spec: dpWithTags(map[string]string{mesh_proto.ServiceTag: "service1", "instance": "a", "port": "9000"})},
 			model.WithMesh("mesh", "dp1-b"): &mesh.DataplaneResource{Spec: dpWithTags(map[string]string{mesh_proto.ServiceTag: "service1", "instance": "b"})},
-			model.WithMesh("mesh", "dp2"):   &mesh.DataplaneResource{Spec: dp("service2")},
+			model.WithMesh("mesh", "dp2"):   builders.Dataplane().
+				WithName("dp1").WithMesh("mesh-1").
+				WithServices("service2"),
 			model.WithMesh("mesh", "vob-1"): &mesh.VirtualOutboundResource{
 				Spec: &mesh_proto.VirtualOutbound{
 					Selectors: []*mesh_proto.Selector{
