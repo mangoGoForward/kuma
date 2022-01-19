@@ -3,7 +3,6 @@ package topology_test
 import (
 	"context"
 
-	"github.com/kumahq/kuma/pkg/test/resources/builders"
 	"github.com/kumahq/kuma/pkg/test/resources/samples"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -24,7 +23,7 @@ var _ = Describe("GetTrafficTrace", func() {
 		Expect(samples.TrafficTraceWebBuilder().Create(store)).To(Succeed())
 
 		// when
-		picked, err := topology.GetTrafficTrace(context.Background(), builders.Dataplane().Build(), manager)
+		picked, err := topology.GetTrafficTrace(context.Background(), samples.DataplaneBackend(), manager)
 
 		// then
 		Expect(err).ToNot(HaveOccurred())
@@ -39,7 +38,7 @@ var _ = Describe("GetTrafficTrace", func() {
 		manager := resources_manager.NewResourceManager(store)
 
 		// when
-		picked, err := topology.GetTrafficTrace(context.Background(), builders.Dataplane().Build(), manager)
+		picked, err := topology.GetTrafficTrace(context.Background(), samples.DataplaneBackend(), manager)
 
 		// then
 		Expect(err).ToNot(HaveOccurred())
