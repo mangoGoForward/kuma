@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/kumahq/kuma/pkg/test/resources/builders"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -47,33 +48,14 @@ var _ = Describe("TrafficRoute", func() {
 				},
 				Spec: &mesh_proto.Mesh{},
 			}
-			backend := &core_mesh.DataplaneResource{ // dataplane that is a source of traffic
-				Meta: &test_model.ResourceMeta{
-					Mesh: "demo",
-					Name: "backend",
-				},
-				Spec: &mesh_proto.Dataplane{
-					Networking: &mesh_proto.Dataplane_Networking{
-						Address: "192.168.0.1",
-						Inbound: []*mesh_proto.Dataplane_Networking_Inbound{
-							{
-								Tags:        map[string]string{"kuma.io/service": "backend", "region": "eu"},
-								Port:        8080,
-								ServicePort: 18080,
-							},
-							{
-								Tags:        map[string]string{"kuma.io/service": "frontend", "region": "eu"},
-								Port:        7070,
-								ServicePort: 17070,
-							},
-						},
-						Outbound: []*mesh_proto.Dataplane_Networking_Outbound{
-							{Service: "redis", Port: 10001},
-							{Service: "elastic", Port: 10002},
-						},
-					},
-				},
-			}
+			backend := builders.Dataplane(). // dataplane that is a source of traffic
+				WithName("backend").
+				WithMesh("demo").
+				WithoutInbounds().
+				AddTags("kuma.io/service", "backend", "region", "eu").
+				AddTags("kuma.io/service", "frontend", "region", "eu").
+				AddOutboundToService("redis").
+				AddOutboundToService("elastic")
 			routeRedis := &core_mesh.TrafficRouteResource{ // traffic route for `redis` service
 				Meta: &test_model.ResourceMeta{
 					Mesh: "demo",
@@ -157,7 +139,7 @@ var _ = Describe("TrafficRoute", func() {
 			}
 
 			// when
-			routes, err := GetRoutes(ctx, backend, rm)
+			routes, err := GetRoutes(ctx, backend.DataplaneResource, rm)
 
 			// then
 			Expect(err).ToNot(HaveOccurred())
@@ -314,21 +296,10 @@ var _ = Describe("TrafficRoute", func() {
 				},
 			}),
 			Entry("TrafficRoute with a `source` selector by 2 tags should win over a TrafficRoute with a `source` selector by 1 tag", testCase{
-				dataplane: &core_mesh.DataplaneResource{
-					Spec: &mesh_proto.Dataplane{
-						Networking: &mesh_proto.Dataplane_Networking{
-							Inbound: []*mesh_proto.Dataplane_Networking_Inbound{
-								{Tags: map[string]string{"kuma.io/service": "backend", "region": "eu"}},
-							},
-							Outbound: []*mesh_proto.Dataplane_Networking_Outbound{
-								{
-									Port:    1234,
-									Service: "redis",
-								},
-							},
-						},
-					},
-				},
+				dataplane: builders.Dataplane().
+					WithTags("kuma.io/service", "backend", "region", "eu").
+					AddOutboundToService("redis").
+					Build(),
 				routes: []*core_mesh.TrafficRouteResource{
 					{
 						Meta: &test_model.ResourceMeta{
@@ -376,7 +347,7 @@ var _ = Describe("TrafficRoute", func() {
 				expected: core_xds.RouteMap{
 					mesh_proto.OutboundInterface{
 						DataplaneIP:   "127.0.0.1",
-						DataplanePort: 1234,
+						DataplanePort: builders.FirstOutboundPort,
 					}: &core_mesh.TrafficRouteResource{
 						Meta: &test_model.ResourceMeta{
 							Name: "more-specific",

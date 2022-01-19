@@ -5,14 +5,15 @@ import (
 
 	mesh_proto "github.com/kumahq/kuma/api/mesh/v1alpha1"
 	"github.com/kumahq/kuma/pkg/core/resources/apis/mesh"
-	"github.com/kumahq/kuma/pkg/core/resources/manager"
 	model2 "github.com/kumahq/kuma/pkg/core/resources/model"
 	"github.com/kumahq/kuma/pkg/core/resources/store"
 	"github.com/kumahq/kuma/pkg/test/resources/model"
+	"github.com/kumahq/kuma/pkg/util/proto"
 )
 
-//
-// SampleDataplane().Inbounds().SampleTransparentProxy()
+var FirstInboundPort = uint32(80)
+var FirstInboundServicePort = uint32(8080)
+var FirstOutboundPort = uint32(10001)
 
 type DataplaneBuilder struct {
 	*mesh.DataplaneResource
@@ -30,10 +31,10 @@ func Dataplane() *DataplaneBuilder {
 					Address: "192.168.0.1",
 					Inbound: []*mesh_proto.Dataplane_Networking_Inbound{
 						{
-							Port:        80,
-							ServicePort: 8080,
+							Port:        FirstInboundPort,
+							ServicePort: FirstInboundServicePort,
 							Tags: map[string]string{
-								"kuma.io/serivce": "backend",
+								mesh_proto.ServiceTag: "backend",
 							},
 						},
 					},
@@ -41,6 +42,21 @@ func Dataplane() *DataplaneBuilder {
 			},
 		},
 	}
+}
+
+func (d *DataplaneBuilder) Build() *mesh.DataplaneResource {
+	if err := d.DataplaneResource.Validate(); err != nil {
+		panic(err)
+	}
+	return d.DataplaneResource
+}
+
+func (d *DataplaneBuilder) Create(s store.ResourceStore) error {
+	return s.Create(context.Background(), d.Build(), store.CreateBy(d.Key()))
+}
+
+func (d *DataplaneBuilder) Key() model2.ResourceKey {
+	return model2.MetaToResourceKey(d.GetMeta())
 }
 
 func (d *DataplaneBuilder) WithName(name string) *DataplaneBuilder {
@@ -53,45 +69,76 @@ func (d *DataplaneBuilder) WithMesh(mesh string) *DataplaneBuilder {
 	return d
 }
 
-func (d *DataplaneBuilder) Key() model2.ResourceKey {
-	return model2.MetaToResourceKey(d.Meta)
+func (d *DataplaneBuilder) WithoutInbounds() *DataplaneBuilder {
+	d.Spec.Networking.Inbound = nil
+	return d
 }
 
-func (d *DataplaneBuilder) Create(manager manager.ResourceManager) error {
-	return manager.Create(context.Background(), d.DataplaneResource, store.CreateBy(d.Key()))
+func (d *DataplaneBuilder) WithAddress(address string) *DataplaneBuilder {
+	d.DataplaneResource.Spec.Networking.Address = address
+	return d
 }
 
-func (d *DataplaneBuilder) WithTags(tags map[string]string) *DataplaneBuilder {
-	d.Spec.Networking.Inbound = []*mesh_proto.Dataplane_Networking_Inbound{
-		{
-			Port: 80,
-			ServicePort: 8080,
-			Tags: tags,
+func (d *DataplaneBuilder) WithTags(tagsKV ...string) *DataplaneBuilder {
+	return d.WithTagsMap(tagsKVToMap(tagsKV))
+}
+
+func (d *DataplaneBuilder) With(fn func(*mesh.DataplaneResource)) *DataplaneBuilder {
+	fn(d.DataplaneResource)
+	return d
+}
+
+func (d *DataplaneBuilder) WithTagsMap(tags map[string]string) *DataplaneBuilder {
+	return d.WithoutInbounds().AddTagsMap(tags)
+}
+
+func (d *DataplaneBuilder) AddTags(tags ...string) *DataplaneBuilder {
+	return d.AddTagsMap(tagsKVToMap(tags))
+}
+
+func (d *DataplaneBuilder) AddTagsMap(tags map[string]string) *DataplaneBuilder {
+	d.Spec.Networking.Inbound = append(d.Spec.Networking.Inbound, &mesh_proto.Dataplane_Networking_Inbound{
+		Port:        FirstInboundPort + uint32(len(d.Spec.Networking.Inbound)),
+		ServicePort: FirstInboundServicePort + uint32(len(d.Spec.Networking.Inbound)),
+		Tags:        tags,
+	})
+	return d
+}
+
+func (d *DataplaneBuilder) AddOutboundToService(service string) *DataplaneBuilder {
+	d.Spec.Networking.Outbound = append(d.Spec.Networking.Outbound, &mesh_proto.Dataplane_Networking_Outbound{
+		Port:    FirstOutboundPort + uint32(len(d.Spec.Networking.Outbound)),
+		Tags: map[string]string{
+			mesh_proto.ServiceTag: service,
 		},
-	}
+	})
 	return d
 }
 
 func (d *DataplaneBuilder) WithServices(services ...string) *DataplaneBuilder {
-	d.Spec.Networking.Inbound = []*mesh_proto.Dataplane_Networking_Inbound{}
-	for i, service := range services {
-		d.Spec.Networking.Inbound = append(d.Spec.Networking.Inbound, &mesh_proto.Dataplane_Networking_Inbound{
-			Port:        uint32(80 + i),
-			ServicePort: uint32(8080 + i),
-			Tags: map[string]string{
-				"kuma.io/service": service,
-			},
-		})
+	d.WithoutInbounds()
+	for _, service := range services {
+		d.AddTags(mesh_proto.ServiceTag, service)
 	}
 	return d
 }
 
-func (d *DataplaneBuilder) WithSampleTransparentProxy() *DataplaneBuilder {
-	d.Spec.Networking.TransparentProxying = &mesh_proto.Dataplane_Networking_TransparentProxying{
-		RedirectPortInbound:   0,
-		RedirectPortOutbound:  0,
-		DirectAccessServices:  nil,
-		RedirectPortInboundV6: 0,
+func tagsKVToMap(tagsKV []string) map[string]string {
+	if len(tagsKV) % 2 == 1 {
+		panic("tagsKV has to have even number of arguments")
+	}
+	tags := map[string]string{}
+	for i := 0; i < len(tagsKV); i += 2 {
+		tags[tagsKV[i]] = tagsKV[i+1]
+	}
+	return tags
+}
+
+func (d *DataplaneBuilder) WithPrometheusMetrics(config *mesh_proto.PrometheusMetricsBackendConfig) *DataplaneBuilder {
+	d.Spec.Metrics = &mesh_proto.MetricsBackend{
+		Name: "prometheus-1",
+		Type: mesh_proto.MetricsPrometheusType,
+		Conf: proto.MustToStruct(config),
 	}
 	return d
 }

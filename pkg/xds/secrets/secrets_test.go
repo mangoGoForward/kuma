@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/kumahq/kuma/pkg/test/resources/builders"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -62,29 +63,6 @@ var _ = Describe("Secrets", func() {
 		}
 	}
 
-	newDataplane := func() *core_mesh.DataplaneResource {
-		return &core_mesh.DataplaneResource{
-			Meta: &model.ResourceMeta{
-				Mesh: "default",
-				Name: "dp1",
-			},
-			Spec: &mesh_proto.Dataplane{
-				Networking: &mesh_proto.Dataplane_Networking{
-					Address: "192.168.0.1",
-					Inbound: []*mesh_proto.Dataplane_Networking_Inbound{
-						{
-							Port:        8080,
-							ServicePort: 8081,
-							Tags: map[string]string{
-								"kuma.io/service": "web",
-							},
-						},
-					},
-				},
-			},
-		}
-	}
-
 	BeforeEach(func() {
 		resStore := memory.NewStore()
 		secretManager := secrets_manager.NewSecretManager(secrets_store.NewSecretStore(resStore), cipher.None(), nil)
@@ -112,8 +90,11 @@ var _ = Describe("Secrets", func() {
 	})
 
 	It("should generate cert and emit statistic and info", func() {
+		// given
+		dp := builders.Dataplane().Build()
+
 		// when
-		identity, ca, err := secrets.Get(newDataplane(), newMesh())
+		identity, ca, err := secrets.Get(dp, newMesh())
 
 		// then certs are generated
 		Expect(err).ToNot(HaveOccurred())
@@ -122,13 +103,13 @@ var _ = Describe("Secrets", func() {
 		Expect(ca.PemCerts).ToNot(BeEmpty())
 
 		// and info is stored
-		info := secrets.Info(core_model.MetaToResourceKey(newDataplane().Meta))
+		info := secrets.Info(core_model.MetaToResourceKey(dp.Meta))
 		Expect(info.Generation).To(Equal(now))
 		Expect(info.Expiration.Unix()).To(Equal(now.Add(1 * time.Hour).Unix()))
 		Expect(info.MTLS.EnabledBackend).To(Equal("ca-1"))
 		Expect(info.Tags).To(Equal(mesh_proto.MultiValueTagSet{
 			"kuma.io/service": map[string]bool{
-				"web": true,
+				dp.Spec.GetIdentifyingService(): true,
 			},
 		}))
 
@@ -138,11 +119,12 @@ var _ = Describe("Secrets", func() {
 
 	It("should not regenerate certs if nothing has changed", func() {
 		// given
-		identity, ca, err := secrets.Get(newDataplane(), newMesh())
+		dp := builders.Dataplane().Build()
+		identity, ca, err := secrets.Get(dp, newMesh())
 		Expect(err).ToNot(HaveOccurred())
 
 		// when
-		newIdentity, newCa, err := secrets.Get(newDataplane(), newMesh())
+		newIdentity, newCa, err := secrets.Get(dp, newMesh())
 
 		// then
 		Expect(err).ToNot(HaveOccurred())
@@ -153,7 +135,7 @@ var _ = Describe("Secrets", func() {
 
 	Context("should regenerate certificate", func() {
 		BeforeEach(func() {
-			_, _, err := secrets.Get(newDataplane(), newMesh())
+			_, _, err := secrets.Get(builders.Dataplane().Build(), newMesh())
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -163,7 +145,7 @@ var _ = Describe("Secrets", func() {
 			mesh.Spec.Mtls.EnabledBackend = "ca-2"
 
 			// when
-			_, _, err := secrets.Get(newDataplane(), mesh)
+			_, _, err := secrets.Get(builders.Dataplane().Build(), mesh)
 
 			// then
 			Expect(err).ToNot(HaveOccurred())
@@ -172,8 +154,9 @@ var _ = Describe("Secrets", func() {
 
 		It("when dp tags has changed", func() {
 			// given
-			dataplane := newDataplane()
-			dataplane.Spec.Networking.Inbound[0].Tags["kuma.io/service"] = "web2"
+			dataplane := builders.Dataplane().
+				WithServices("web2").
+				Build()
 
 			// when
 			_, _, err := secrets.Get(dataplane, newMesh())
@@ -188,7 +171,7 @@ var _ = Describe("Secrets", func() {
 			now = now.Add(48*time.Minute + 1*time.Millisecond) // 4/5 of 60 minutes
 
 			// when
-			_, _, err := secrets.Get(newDataplane(), newMesh())
+			_, _, err := secrets.Get(builders.Dataplane().Build(), newMesh())
 
 			// then
 			Expect(err).ToNot(HaveOccurred())
@@ -197,10 +180,11 @@ var _ = Describe("Secrets", func() {
 
 		It("when cert was cleaned up", func() {
 			// given
-			secrets.Cleanup(core_model.MetaToResourceKey(newDataplane().Meta))
+			dp := builders.Dataplane().Build()
+			secrets.Cleanup(core_model.MetaToResourceKey(dp.Meta))
 
 			// when
-			_, _, err := secrets.Get(newDataplane(), newMesh())
+			_, _, err := secrets.Get(dp, newMesh())
 
 			// then
 			Expect(err).ToNot(HaveOccurred())
@@ -210,13 +194,14 @@ var _ = Describe("Secrets", func() {
 
 	It("should cleanup certs", func() {
 		// given
-		_, _, err := secrets.Get(newDataplane(), newMesh())
+		dp := builders.Dataplane().Build()
+		_, _, err := secrets.Get(dp, newMesh())
 		Expect(err).ToNot(HaveOccurred())
 
 		// when
-		secrets.Cleanup(core_model.MetaToResourceKey(newDataplane().Meta))
+		secrets.Cleanup(core_model.MetaToResourceKey(dp.Meta))
 
 		// then
-		Expect(secrets.Info(core_model.MetaToResourceKey(newDataplane().Meta))).To(BeNil())
+		Expect(secrets.Info(core_model.MetaToResourceKey(dp.Meta))).To(BeNil())
 	})
 })

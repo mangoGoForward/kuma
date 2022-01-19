@@ -22,30 +22,6 @@ import (
 	"github.com/kumahq/kuma/pkg/plugins/resources/memory"
 )
 
-func dpWithTags(tags ...map[string]string) *mesh_proto.Dataplane {
-	inbound := []*mesh_proto.Dataplane_Networking_Inbound{}
-	for _, t := range tags {
-		inbound = append(inbound, &mesh_proto.Dataplane_Networking_Inbound{
-			Port: 8080,
-			Tags: t,
-		})
-	}
-	return &mesh_proto.Dataplane{
-		Networking: &mesh_proto.Dataplane_Networking{
-			Address: "127.0.0.1",
-			Inbound: inbound,
-		},
-	}
-}
-
-func dp(services ...string) *mesh_proto.Dataplane {
-	var tags []map[string]string
-	for _, s := range services {
-		tags = append(tags, map[string]string{mesh_proto.ServiceTag: s})
-	}
-	return dpWithTags(tags...)
-}
-
 type errConfigManager struct {
 	config_manager.ConfigManager
 }
@@ -323,8 +299,8 @@ var _ = DescribeTable("outboundView",
 	}),
 	Entry("virtual outbound simple", outboundViewTestCase{
 		givenResources: map[model.ResourceKey]model.Resource{
-			model.WithMesh("mesh", "dp1-a"): &mesh.DataplaneResource{Spec: dpWithTags(map[string]string{mesh_proto.ServiceTag: "service1", "instance": "a", "port": "9000"})},
-			model.WithMesh("mesh", "dp1-b"): &mesh.DataplaneResource{Spec: dpWithTags(map[string]string{mesh_proto.ServiceTag: "service1", "instance": "b"})},
+			model.WithMesh("mesh", "dp1-a"): builders.Dataplane().WithTags(mesh_proto.ServiceTag, "service1", "instance", "a", "port", "9000"),
+			model.WithMesh("mesh", "dp1-b"): builders.Dataplane().WithTags(mesh_proto.ServiceTag, "service1", "instance", "b"),
 			model.WithMesh("mesh", "dp2"):   builders.Dataplane().
 				WithName("dp1").WithMesh("mesh-1").
 				WithServices("service2"),
@@ -363,9 +339,9 @@ var _ = DescribeTable("outboundView",
 	}),
 	Entry("virtual outbound same hostname different ports", outboundViewTestCase{
 		givenResources: map[model.ResourceKey]model.Resource{
-			model.WithMesh("mesh", "dp1-a"): &mesh.DataplaneResource{Spec: dpWithTags(map[string]string{mesh_proto.ServiceTag: "service1", "port": "9000"})},
-			model.WithMesh("mesh", "dp1-b"): &mesh.DataplaneResource{Spec: dpWithTags(map[string]string{mesh_proto.ServiceTag: "service1", "port": "8000"})},
-			model.WithMesh("mesh", "dp2"):   &mesh.DataplaneResource{Spec: dpWithTags(map[string]string{mesh_proto.ServiceTag: "service2"})},
+			model.WithMesh("mesh", "dp1-a"): builders.Dataplane().WithTags(mesh_proto.ServiceTag, "service1", "port", "9000"),
+			model.WithMesh("mesh", "dp1-b"): builders.Dataplane().WithTags(mesh_proto.ServiceTag, "service1", "port", "8000"),
+			model.WithMesh("mesh", "dp2"):   builders.Dataplane().WithServices("service2"),
 			model.WithMesh("mesh", "vob-1"): &mesh.VirtualOutboundResource{
 				Spec: &mesh_proto.VirtualOutbound{
 					Selectors: []*mesh_proto.Selector{
@@ -401,7 +377,7 @@ var _ = DescribeTable("outboundView",
 	}),
 	Entry("virtual outbound collision, picks the most specific", outboundViewTestCase{
 		givenResources: map[model.ResourceKey]model.Resource{
-			model.WithMesh("mesh", "dp1"): &mesh.DataplaneResource{Spec: dpWithTags(map[string]string{mesh_proto.ServiceTag: "service1", "instance": "1"})},
+			model.WithMesh("mesh", "dp1"): builders.Dataplane().WithTags(mesh_proto.ServiceTag, "service1", "instance", "1"),
 			model.WithMesh("mesh", "vob-1"): &mesh.VirtualOutboundResource{
 				Spec: &mesh_proto.VirtualOutbound{
 					Selectors: []*mesh_proto.Selector{
@@ -445,7 +421,7 @@ var _ = DescribeTable("outboundView",
 	}),
 	Entry("dp skip service vips", outboundViewTestCase{
 		givenResources: map[model.ResourceKey]model.Resource{
-			model.WithMesh("mesh", "dp1"): &mesh.DataplaneResource{Spec: dp("service1")},
+			model.WithMesh("mesh", "dp1"): builders.Dataplane().WithServices("service1"),
 			model.WithMesh("mesh", "es-1"): &mesh.ExternalServiceResource{
 				Spec: &mesh_proto.ExternalService{
 					Networking: &mesh_proto.ExternalService_Networking{

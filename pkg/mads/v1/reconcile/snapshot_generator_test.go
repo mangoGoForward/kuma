@@ -4,6 +4,7 @@ import (
 	"context"
 
 	envoy_types "github.com/envoyproxy/go-control-plane/pkg/cache/types"
+	"github.com/kumahq/kuma/pkg/test/resources/builders"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -79,24 +80,9 @@ var _ = Describe("snapshotGenerator", func() {
 					},
 				},
 				dataplanes: []*core_mesh.DataplaneResource{
-					{
-						Meta: &test_model.ResourceMeta{
-							Name: "backend-01",
-							Mesh: "default",
-						},
-						Spec: &mesh_proto.Dataplane{
-							Networking: &mesh_proto.Dataplane_Networking{
-								Address: "192.168.0.1",
-								Inbound: []*mesh_proto.Dataplane_Networking_Inbound{{
-									Port:        80,
-									ServicePort: 8080,
-									Tags: map[string]string{
-										"kuma.io/service": "backend",
-									},
-								}},
-							},
-						},
-					},
+					builders.Dataplane().
+						WithName("backend-01").
+						Build(),
 				},
 				expected: mads_cache.NewSnapshot("", nil),
 			}),
@@ -130,24 +116,9 @@ var _ = Describe("snapshotGenerator", func() {
 					},
 				},
 				dataplanes: []*core_mesh.DataplaneResource{
-					{
-						Meta: &test_model.ResourceMeta{
-							Name: "backend-01",
-							Mesh: "default",
-						},
-						Spec: &mesh_proto.Dataplane{
-							Networking: &mesh_proto.Dataplane_Networking{
-								Address: "192.168.0.1",
-								Inbound: []*mesh_proto.Dataplane_Networking_Inbound{{
-									Port:        80,
-									ServicePort: 8080,
-									Tags: map[string]string{
-										"kuma.io/service": "backend",
-									},
-								}},
-							},
-						},
-					},
+					builders.Dataplane().
+						WithName("backend-01").
+						Build(),
 				},
 				expected: mads_cache.NewSnapshot("", nil),
 			}),
@@ -180,69 +151,26 @@ var _ = Describe("snapshotGenerator", func() {
 					},
 				},
 				dataplanes: []*core_mesh.DataplaneResource{
-					{
-						Meta: &test_model.ResourceMeta{
-							Name: "backend-01",
-							Mesh: "default",
-						},
-						Spec: &mesh_proto.Dataplane{
-							Networking: &mesh_proto.Dataplane_Networking{
-								Address: "192.168.0.1",
-								Inbound: []*mesh_proto.Dataplane_Networking_Inbound{{
-									Port:        80,
-									ServicePort: 8080,
-									Tags: map[string]string{
-										"kuma.io/service": "backend",
-										"env":             "prod",
-									},
-								}},
-							},
-						},
-					},
-					{
-						Meta: &test_model.ResourceMeta{
-							Name: "backend-02",
-							Mesh: "demo",
-						},
-						Spec: &mesh_proto.Dataplane{
-							Networking: &mesh_proto.Dataplane_Networking{
-								Address: "192.168.0.2",
-								Inbound: []*mesh_proto.Dataplane_Networking_Inbound{{
-									Port:        443,
-									ServicePort: 8443,
-									Tags: map[string]string{
-										"kuma.io/service": "backend",
-										"env":             "intg",
-									},
-								}},
-							},
-						},
-					},
-					{
-						Meta: &test_model.ResourceMeta{
-							Name: "web-01",
-							Mesh: "demo",
-						},
-						Spec: &mesh_proto.Dataplane{
-							Networking: &mesh_proto.Dataplane_Networking{
-								Address: "192.168.0.3",
-								Gateway: &mesh_proto.Dataplane_Networking_Gateway{
-									Tags: map[string]string{
-										"kuma.io/service": "web",
-										"env":             "test",
-									},
-								},
-							},
-							Metrics: &mesh_proto.MetricsBackend{
-								Name: "prometheus-1",
-								Type: mesh_proto.MetricsPrometheusType,
-								Conf: proto.MustToStruct(&mesh_proto.PrometheusMetricsBackendConfig{
-									Port: 8765,
-									Path: "/even-more-non-standard-path",
-								}),
-							},
-						},
-					},
+					builders.Dataplane().
+						WithName("backend-01").
+						WithTags(mesh_proto.ServiceTag, "backend", "env", "prod").
+						Build(),
+					builders.Dataplane().
+						WithName("backend-02").
+						WithMesh("demo").
+						WithAddress("192.168.0.2").
+						WithTags(mesh_proto.ServiceTag, "backend", "env", "intg").
+						Build(),
+					builders.Dataplane().
+						WithName("web-01").
+						WithMesh("demo").
+						WithAddress("192.168.0.3").
+						WithTags(mesh_proto.ServiceTag, "web", "env", "test").
+						WithPrometheusMetrics(&mesh_proto.PrometheusMetricsBackendConfig{
+							Port: 8765,
+							Path: "/even-more-non-standard-path",
+						}).
+						Build(),
 				},
 				// TODO: generate this resource map on the fly using the mads/v1/generator pkg
 				expected: mads_cache.NewSnapshot("", map[string]envoy_types.Resource{

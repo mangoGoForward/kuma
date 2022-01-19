@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/kumahq/kuma/pkg/test/resources/builders"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -47,33 +48,16 @@ var _ = Describe("HealthCheck", func() {
 				},
 				Spec: &mesh_proto.Mesh{},
 			}
-			backend := &core_mesh.DataplaneResource{ // dataplane that is a source of traffic
-				Meta: &test_model.ResourceMeta{
-					Mesh: "demo",
-					Name: "backend",
-				},
-				Spec: &mesh_proto.Dataplane{
-					Networking: &mesh_proto.Dataplane_Networking{
-						Address: "192.168.0.1",
-						Inbound: []*mesh_proto.Dataplane_Networking_Inbound{
-							{
-								Tags:        map[string]string{"kuma.io/service": "backend", "region": "eu"},
-								Port:        8080,
-								ServicePort: 18080,
-							},
-							{
-								Tags:        map[string]string{"kuma.io/service": "frontend", "region": "eu"},
-								Port:        7070,
-								ServicePort: 17070,
-							},
-						},
-						Outbound: []*mesh_proto.Dataplane_Networking_Outbound{
-							{Service: "redis", Port: 10001},
-							{Service: "elastic", Port: 10002},
-						},
-					},
-				},
-			}
+
+			backend := builders.Dataplane(). // dataplane that is a source of traffic
+				WithMesh("demo").
+				WithoutInbounds().
+				AddTags(mesh_proto.ServiceTag, "backend", "region", "eu").
+				AddTags(mesh_proto.ServiceTag, "frontend", "region", "eu").
+				AddOutboundToService("redis").
+				AddOutboundToService("elastic").
+				Build()
+
 			destinations := core_xds.DestinationMap{
 				"redis":   core_xds.TagSelectorSet{mesh_proto.MatchService("redis")},
 				"elastic": core_xds.TagSelectorSet{mesh_proto.MatchService("elastic")},
@@ -227,18 +211,10 @@ var _ = Describe("HealthCheck", func() {
 				expected:     nil,
 			}),
 			Entry("due to TrafficRoutes, a Dataplane might have more destinations than outbound interfaces", testCase{
-				dataplane: &core_mesh.DataplaneResource{
-					Spec: &mesh_proto.Dataplane{
-						Networking: &mesh_proto.Dataplane_Networking{
-							Inbound: []*mesh_proto.Dataplane_Networking_Inbound{
-								{Tags: map[string]string{"kuma.io/service": "backend"}},
-							},
-							Outbound: []*mesh_proto.Dataplane_Networking_Outbound{
-								{Service: "redis"},
-							},
-						},
-					},
-				},
+				dataplane: builders.Dataplane().
+					WithServices("backend").
+					AddOutboundToService("redis").
+					Build(),
 				destinations: core_xds.DestinationMap{
 					"redis":   core_xds.TagSelectorSet{mesh_proto.MatchService("redis")},
 					"elastic": core_xds.TagSelectorSet{mesh_proto.MatchService("elastic")},
@@ -297,18 +273,10 @@ var _ = Describe("HealthCheck", func() {
 				},
 			}),
 			Entry("HealthChecks should be picked by latest creation time given two equally specific HealthChecks", testCase{
-				dataplane: &core_mesh.DataplaneResource{
-					Spec: &mesh_proto.Dataplane{
-						Networking: &mesh_proto.Dataplane_Networking{
-							Inbound: []*mesh_proto.Dataplane_Networking_Inbound{
-								{Tags: map[string]string{"kuma.io/service": "backend"}},
-							},
-							Outbound: []*mesh_proto.Dataplane_Networking_Outbound{
-								{Service: "redis"},
-							},
-						},
-					},
-				},
+				dataplane: builders.Dataplane().
+					WithServices("backend").
+					AddOutboundToService("redis").
+					Build(),
 				destinations: core_xds.DestinationMap{
 					"redis": core_xds.TagSelectorSet{mesh_proto.MatchService("redis")},
 				},
@@ -427,18 +395,10 @@ var _ = Describe("HealthCheck", func() {
 				},
 			}),
 			Entry("HealthCheck with a `source` selector by an exact value should win over a HealthCheck with a `source` selector by a wildcard value", testCase{
-				dataplane: &core_mesh.DataplaneResource{
-					Spec: &mesh_proto.Dataplane{
-						Networking: &mesh_proto.Dataplane_Networking{
-							Inbound: []*mesh_proto.Dataplane_Networking_Inbound{
-								{Tags: map[string]string{"kuma.io/service": "backend", "region": "eu"}},
-							},
-							Outbound: []*mesh_proto.Dataplane_Networking_Outbound{
-								{Service: "redis"},
-							},
-						},
-					},
-				},
+				dataplane: builders.Dataplane().
+					WithTags(mesh_proto.ServiceTag, "backend", "region", "eu").
+					AddOutboundToService("redis").
+					Build(),
 				destinations: core_xds.DestinationMap{
 					"redis": core_xds.TagSelectorSet{mesh_proto.MatchService("redis")},
 				},
@@ -491,18 +451,10 @@ var _ = Describe("HealthCheck", func() {
 				},
 			}),
 			Entry("HealthCheck with a `destination` selector by an exact value should win over a HealthCheck with a `destination` selector by a wildcard value", testCase{
-				dataplane: &core_mesh.DataplaneResource{
-					Spec: &mesh_proto.Dataplane{
-						Networking: &mesh_proto.Dataplane_Networking{
-							Inbound: []*mesh_proto.Dataplane_Networking_Inbound{
-								{Tags: map[string]string{"kuma.io/service": "backend", "region": "eu"}},
-							},
-							Outbound: []*mesh_proto.Dataplane_Networking_Outbound{
-								{Service: "redis"},
-							},
-						},
-					},
-				},
+				dataplane: builders.Dataplane().
+					WithTags(mesh_proto.ServiceTag, "backend", "region", "eu").
+					AddOutboundToService("redis").
+					Build(),
 				destinations: core_xds.DestinationMap{
 					"redis": core_xds.TagSelectorSet{mesh_proto.MatchService("redis")},
 				},
@@ -555,18 +507,10 @@ var _ = Describe("HealthCheck", func() {
 				},
 			}),
 			Entry("in case if HealthChecks have equal aggregate ranks, most specific one should be selected based on last creation time", testCase{
-				dataplane: &core_mesh.DataplaneResource{
-					Spec: &mesh_proto.Dataplane{
-						Networking: &mesh_proto.Dataplane_Networking{
-							Inbound: []*mesh_proto.Dataplane_Networking_Inbound{
-								{Tags: map[string]string{"kuma.io/service": "backend", "region": "eu"}},
-							},
-							Outbound: []*mesh_proto.Dataplane_Networking_Outbound{
-								{Service: "redis"},
-							},
-						},
-					},
-				},
+				dataplane: builders.Dataplane().
+					WithTags(mesh_proto.ServiceTag, "backend", "region", "eu").
+					AddOutboundToService("redis").
+					Build(),
 				destinations: core_xds.DestinationMap{
 					"redis": core_xds.TagSelectorSet{mesh_proto.MatchService("redis")},
 				},

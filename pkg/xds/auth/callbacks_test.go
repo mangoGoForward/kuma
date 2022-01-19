@@ -6,6 +6,7 @@ import (
 	envoy_core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_sd "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	envoy_server "github.com/envoyproxy/go-control-plane/pkg/server/v3"
+	"github.com/kumahq/kuma/pkg/test/resources/builders"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
@@ -56,27 +57,10 @@ var _ = Describe("Auth Callbacks", func() {
 	var resManager core_manager.ResourceManager
 	var callbacks envoy_server.Callbacks
 
-	dpRes := &core_mesh.DataplaneResource{
-		Meta: &test_model.ResourceMeta{
-			Name: "web-01",
-			Mesh: "default",
-		},
-		Spec: &mesh_proto.Dataplane{
-			Networking: &mesh_proto.Dataplane_Networking{
-				Address: "127.0.0.1",
-				Inbound: []*mesh_proto.Dataplane_Networking_Inbound{
-					{
-						Port:        8080,
-						ServicePort: 8081,
-						Tags: map[string]string{
-							"kuma.io/service":  "web",
-							"kuma.io/protocol": "http",
-						},
-					},
-				},
-			},
-		},
-	}
+	dpRes := builders.Dataplane().
+		WithName("web-01").
+		WithTags(mesh_proto.ServiceTag, "web", mesh_proto.ProtocolTag, "http").
+		Build()
 
 	zoneIngress := &core_mesh.ZoneIngressResource{
 		Meta: &test_model.ResourceMeta{
