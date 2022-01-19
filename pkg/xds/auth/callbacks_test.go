@@ -59,6 +59,7 @@ var _ = Describe("Auth Callbacks", func() {
 
 	dpRes := builders.Dataplane().
 		WithName("web-01").
+		WithAddress("192.168.0.1").
 		WithTags(mesh_proto.ServiceTag, "web", mesh_proto.ProtocolTag, "http").
 		Build()
 

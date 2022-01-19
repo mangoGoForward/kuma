@@ -5,6 +5,7 @@ import (
 
 	envoy_types "github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	"github.com/kumahq/kuma/pkg/test/resources/builders"
+	"github.com/kumahq/kuma/pkg/test/resources/samples"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -80,7 +81,7 @@ var _ = Describe("snapshotGenerator", func() {
 					},
 				},
 				dataplanes: []*core_mesh.DataplaneResource{
-					builders.Dataplane().
+					samples.DataplaneBackendBuilder().
 						WithName("backend-01").
 						Build(),
 				},
@@ -116,7 +117,7 @@ var _ = Describe("snapshotGenerator", func() {
 					},
 				},
 				dataplanes: []*core_mesh.DataplaneResource{
-					builders.Dataplane().
+					samples.DataplaneBackendBuilder().
 						WithName("backend-01").
 						Build(),
 				},
@@ -153,6 +154,7 @@ var _ = Describe("snapshotGenerator", func() {
 				dataplanes: []*core_mesh.DataplaneResource{
 					builders.Dataplane().
 						WithName("backend-01").
+						WithAddress("192.168.0.1").
 						WithTags(mesh_proto.ServiceTag, "backend", "env", "prod").
 						Build(),
 					builders.Dataplane().

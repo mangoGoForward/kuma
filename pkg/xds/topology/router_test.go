@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/kumahq/kuma/pkg/test/resources/builders"
+	"github.com/kumahq/kuma/pkg/test/resources/samples"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -51,7 +52,7 @@ var _ = Describe("TrafficRoute", func() {
 			backend := builders.Dataplane(). // dataplane that is a source of traffic
 				WithName("backend").
 				WithMesh("demo").
-				WithoutInbounds().
+				WithAddress("192.168.0.1").
 				AddTags("kuma.io/service", "backend", "region", "eu").
 				AddTags("kuma.io/service", "frontend", "region", "eu").
 				AddOutboundToService("redis").
@@ -296,8 +297,8 @@ var _ = Describe("TrafficRoute", func() {
 				},
 			}),
 			Entry("TrafficRoute with a `source` selector by 2 tags should win over a TrafficRoute with a `source` selector by 1 tag", testCase{
-				dataplane: builders.Dataplane().
-					WithTags("kuma.io/service", "backend", "region", "eu").
+				dataplane: samples.DataplaneBackendBuilder().
+					WithTags(mesh_proto.ServiceTag, "backend", "region", "eu").
 					AddOutboundToService("redis").
 					Build(),
 				routes: []*core_mesh.TrafficRouteResource{

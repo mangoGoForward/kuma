@@ -27,18 +27,7 @@ func Dataplane() *DataplaneBuilder {
 				Name: "dp-1",
 			},
 			Spec: &mesh_proto.Dataplane{
-				Networking: &mesh_proto.Dataplane_Networking{
-					Address: "192.168.0.1",
-					Inbound: []*mesh_proto.Dataplane_Networking_Inbound{
-						{
-							Port:        FirstInboundPort,
-							ServicePort: FirstInboundServicePort,
-							Tags: map[string]string{
-								mesh_proto.ServiceTag: "backend",
-							},
-						},
-					},
-				},
+				Networking: &mesh_proto.Dataplane_Networking{},
 			},
 		},
 	}

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/kumahq/kuma/pkg/test/resources/builders"
+	"github.com/kumahq/kuma/pkg/test/resources/samples"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -51,7 +52,7 @@ var _ = Describe("HealthCheck", func() {
 
 			backend := builders.Dataplane(). // dataplane that is a source of traffic
 				WithMesh("demo").
-				WithoutInbounds().
+				WithAddress("192.168.0.1").
 				AddTags(mesh_proto.ServiceTag, "backend", "region", "eu").
 				AddTags(mesh_proto.ServiceTag, "frontend", "region", "eu").
 				AddOutboundToService("redis").
@@ -211,8 +212,7 @@ var _ = Describe("HealthCheck", func() {
 				expected:     nil,
 			}),
 			Entry("due to TrafficRoutes, a Dataplane might have more destinations than outbound interfaces", testCase{
-				dataplane: builders.Dataplane().
-					WithServices("backend").
+				dataplane: samples.DataplaneBackendBuilder().
 					AddOutboundToService("redis").
 					Build(),
 				destinations: core_xds.DestinationMap{
@@ -273,8 +273,7 @@ var _ = Describe("HealthCheck", func() {
 				},
 			}),
 			Entry("HealthChecks should be picked by latest creation time given two equally specific HealthChecks", testCase{
-				dataplane: builders.Dataplane().
-					WithServices("backend").
+				dataplane: samples.DataplaneBackendBuilder().
 					AddOutboundToService("redis").
 					Build(),
 				destinations: core_xds.DestinationMap{
@@ -395,7 +394,7 @@ var _ = Describe("HealthCheck", func() {
 				},
 			}),
 			Entry("HealthCheck with a `source` selector by an exact value should win over a HealthCheck with a `source` selector by a wildcard value", testCase{
-				dataplane: builders.Dataplane().
+				dataplane: samples.DataplaneBackendBuilder().
 					WithTags(mesh_proto.ServiceTag, "backend", "region", "eu").
 					AddOutboundToService("redis").
 					Build(),
@@ -451,7 +450,7 @@ var _ = Describe("HealthCheck", func() {
 				},
 			}),
 			Entry("HealthCheck with a `destination` selector by an exact value should win over a HealthCheck with a `destination` selector by a wildcard value", testCase{
-				dataplane: builders.Dataplane().
+				dataplane: samples.DataplaneBackendBuilder().
 					WithTags(mesh_proto.ServiceTag, "backend", "region", "eu").
 					AddOutboundToService("redis").
 					Build(),
@@ -507,7 +506,7 @@ var _ = Describe("HealthCheck", func() {
 				},
 			}),
 			Entry("in case if HealthChecks have equal aggregate ranks, most specific one should be selected based on last creation time", testCase{
-				dataplane: builders.Dataplane().
+				dataplane: samples.DataplaneBackendBuilder().
 					WithTags(mesh_proto.ServiceTag, "backend", "region", "eu").
 					AddOutboundToService("redis").
 					Build(),

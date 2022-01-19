@@ -52,6 +52,7 @@ var _ = Describe("VIP Allocator", func() {
 		err = builders.Dataplane().
 			WithName("dp-1").
 			WithMesh("mesh-1").
+			WithAddress("192.168.0.1").
 			WithServices("backend").
 			Create(rm)
 		Expect(err).ToNot(HaveOccurred())
@@ -59,6 +60,7 @@ var _ = Describe("VIP Allocator", func() {
 		err = builders.Dataplane().
 			WithName("dp-2").
 			WithMesh("mesh-1").
+			WithAddress("192.168.0.1").
 			WithServices("frontend").
 			Create(rm)
 		Expect(err).ToNot(HaveOccurred())
@@ -66,6 +68,7 @@ var _ = Describe("VIP Allocator", func() {
 		err = builders.Dataplane().
 			WithName("dp-3").
 			WithMesh("mesh-2").
+			WithAddress("192.168.0.1").
 			WithServices("web").
 			Create(rm)
 		Expect(err).ToNot(HaveOccurred())
@@ -114,6 +117,7 @@ var _ = Describe("VIP Allocator", func() {
 		err = builders.Dataplane().
 			WithName("dp-3").
 			WithMesh("mesh-1").
+			WithAddress("192.168.0.1").
 			WithServices("database").
 			Create(rm)
 		Expect(err).ToNot(HaveOccurred())
@@ -148,6 +152,7 @@ var _ = Describe("VIP Allocator", func() {
 		err = builders.Dataplane().
 			WithName("dp-3").
 			WithMesh("mesh-1").
+			WithAddress("192.168.0.1").
 			WithServices("database").
 			Create(rm)
 		Expect(err).ToNot(HaveOccurred())
@@ -168,6 +173,7 @@ var _ = Describe("VIP Allocator", func() {
 		err = builders.Dataplane().
 			WithName("dp-3").
 			WithMesh("mesh-1").
+			WithAddress("192.168.0.1").
 			WithServices("database").
 			Create(rm)
 		Expect(err).ToNot(HaveOccurred())
@@ -175,6 +181,7 @@ var _ = Describe("VIP Allocator", func() {
 		err = builders.Dataplane().
 			WithName("dp-4").
 			WithMesh("mesh-2").
+			WithAddress("192.168.0.1").
 			WithServices("payment").
 			Create(rm)
 		Expect(err).ToNot(HaveOccurred())
@@ -223,7 +230,9 @@ var _ = DescribeTable("outboundView",
 	Entry("dp with multiple services", outboundViewTestCase{
 		givenResources: map[model.ResourceKey]model.Resource{
 			model.WithMesh("mesh", "dp1"): builders.Dataplane().
-				WithName("dp1").WithMesh("mesh-1").
+				WithName("dp1").
+				WithMesh("mesh-1").
+				WithAddress("192.168.0.1").
 				WithServices("service1", "service2"),
 		},
 		whenMesh:            "mesh",
@@ -299,10 +308,16 @@ var _ = DescribeTable("outboundView",
 	}),
 	Entry("virtual outbound simple", outboundViewTestCase{
 		givenResources: map[model.ResourceKey]model.Resource{
-			model.WithMesh("mesh", "dp1-a"): builders.Dataplane().WithTags(mesh_proto.ServiceTag, "service1", "instance", "a", "port", "9000"),
-			model.WithMesh("mesh", "dp1-b"): builders.Dataplane().WithTags(mesh_proto.ServiceTag, "service1", "instance", "b"),
+			model.WithMesh("mesh", "dp1-a"): builders.Dataplane().
+				WithAddress("192.168.0.1").
+				WithTags(mesh_proto.ServiceTag, "service1", "instance", "a", "port", "9000"),
+			model.WithMesh("mesh", "dp1-b"): builders.Dataplane().
+				WithAddress("192.168.0.1").
+				WithTags(mesh_proto.ServiceTag, "service1", "instance", "b"),
 			model.WithMesh("mesh", "dp2"):   builders.Dataplane().
-				WithName("dp1").WithMesh("mesh-1").
+				WithName("dp1").
+				WithMesh("mesh-1").
+				WithAddress("192.168.0.1").
 				WithServices("service2"),
 			model.WithMesh("mesh", "vob-1"): &mesh.VirtualOutboundResource{
 				Spec: &mesh_proto.VirtualOutbound{
@@ -339,9 +354,15 @@ var _ = DescribeTable("outboundView",
 	}),
 	Entry("virtual outbound same hostname different ports", outboundViewTestCase{
 		givenResources: map[model.ResourceKey]model.Resource{
-			model.WithMesh("mesh", "dp1-a"): builders.Dataplane().WithTags(mesh_proto.ServiceTag, "service1", "port", "9000"),
-			model.WithMesh("mesh", "dp1-b"): builders.Dataplane().WithTags(mesh_proto.ServiceTag, "service1", "port", "8000"),
-			model.WithMesh("mesh", "dp2"):   builders.Dataplane().WithServices("service2"),
+			model.WithMesh("mesh", "dp1-a"): builders.Dataplane().
+				WithAddress("192.168.0.1").
+				WithTags(mesh_proto.ServiceTag, "service1", "port", "9000"),
+			model.WithMesh("mesh", "dp1-b"): builders.Dataplane().
+				WithAddress("192.168.0.1").
+				WithTags(mesh_proto.ServiceTag, "service1", "port", "8000"),
+			model.WithMesh("mesh", "dp2"):   builders.Dataplane().
+				WithAddress("192.168.0.1").
+				WithServices("service2"),
 			model.WithMesh("mesh", "vob-1"): &mesh.VirtualOutboundResource{
 				Spec: &mesh_proto.VirtualOutbound{
 					Selectors: []*mesh_proto.Selector{
@@ -377,7 +398,9 @@ var _ = DescribeTable("outboundView",
 	}),
 	Entry("virtual outbound collision, picks the most specific", outboundViewTestCase{
 		givenResources: map[model.ResourceKey]model.Resource{
-			model.WithMesh("mesh", "dp1"): builders.Dataplane().WithTags(mesh_proto.ServiceTag, "service1", "instance", "1"),
+			model.WithMesh("mesh", "dp1"): builders.Dataplane().
+				WithAddress("192.168.0.1").
+				WithTags(mesh_proto.ServiceTag, "service1", "instance", "1"),
 			model.WithMesh("mesh", "vob-1"): &mesh.VirtualOutboundResource{
 				Spec: &mesh_proto.VirtualOutbound{
 					Selectors: []*mesh_proto.Selector{
@@ -421,7 +444,9 @@ var _ = DescribeTable("outboundView",
 	}),
 	Entry("dp skip service vips", outboundViewTestCase{
 		givenResources: map[model.ResourceKey]model.Resource{
-			model.WithMesh("mesh", "dp1"): builders.Dataplane().WithServices("service1"),
+			model.WithMesh("mesh", "dp1"): builders.Dataplane().
+				WithAddress("192.168.0.1").
+				WithServices("service1"),
 			model.WithMesh("mesh", "es-1"): &mesh.ExternalServiceResource{
 				Spec: &mesh_proto.ExternalService{
 					Networking: &mesh_proto.ExternalService_Networking{
