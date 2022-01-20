@@ -14,9 +14,12 @@ func MeshDefaultBuilder() *builders.MeshBuilder {
 }
 
 func MeshMTLS() *mesh.MeshResource {
-	return MeshDefaultBuilder().Build()
+	return builders.Mesh().
+		AddBuiltinMTLSBackend("builtin-1").
+		WithEnabledBackend("builtin-1").
+		Build()
 }
 
-func MeshDefaultBuilder() *builders.MeshBuilder {
+func MeshMTLSBuilder() *builders.MeshBuilder {
 	return builders.Mesh()
 }

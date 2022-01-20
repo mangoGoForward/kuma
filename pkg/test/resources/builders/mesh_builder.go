@@ -21,7 +21,9 @@ func Mesh() *MeshBuilder {
 				Mesh: "",
 				Name: "default",
 			},
-			Spec: &mesh_proto.Mesh{},
+			Spec: &mesh_proto.Mesh{
+				Mtls: &mesh_proto.Mesh_Mtls{},
+			},
 		},
 	}
 }
@@ -42,19 +44,18 @@ func (m *MeshBuilder) Key() model2.ResourceKey {
 }
 
 func (m *MeshBuilder) WithBuiltinMTLSBackend(name string) *MeshBuilder {
-	if m.Spec.Mtls == nil {
-		m.Spec.Mtls = &mesh_proto.Mesh_Mtls{}
-	}
 	return m.AddBuiltinMTLSBackend(name)
 }
 
 func (m *MeshBuilder) AddBuiltinMTLSBackend(name string) *MeshBuilder {
-	if m.Spec.Mtls == nil {
-		m.Spec.Mtls = &mesh_proto.Mesh_Mtls{}
-	}
 	m.Spec.Mtls.Backends = append(m.Spec.Mtls.Backends, &mesh_proto.CertificateAuthorityBackend{
 		Name: "builtin-1",
 		Type: "builtin",
 	})
+	return m
+}
+
+func (m *MeshBuilder) WithEnabledBackend(name string) *MeshBuilder {
+	m.Spec.Mtls.EnabledBackend = name
 	return m
 }
