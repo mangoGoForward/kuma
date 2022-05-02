@@ -64,6 +64,10 @@ func (cs *K8sClusters) Name() string {
 	panic("not implemented")
 }
 
+func (cs *K8sClusters) GetKumaCPLogs() (string, error) {
+	panic("not implemented")
+}
+
 func (cs *K8sClusters) DismissCluster() error {
 	for name, c := range cs.clusters {
 		if err := c.DismissCluster(); err != nil {
@@ -185,16 +189,6 @@ func (cs *K8sClusters) DeleteApp(namespace, appname string) error {
 	for name, c := range cs.clusters {
 		if err := c.DeleteApp(namespace, appname); err != nil {
 			return errors.Wrapf(err, "Labeling Namespace %s on %s failed: %v", namespace, name, err)
-		}
-	}
-
-	return nil
-}
-
-func (cs *K8sClusters) InjectDNS(namespace ...string) error {
-	for name, c := range cs.clusters {
-		if err := c.InjectDNS(namespace...); err != nil {
-			return errors.Wrapf(err, "Injecting DNS on %s failed: %v", name, err)
 		}
 	}
 

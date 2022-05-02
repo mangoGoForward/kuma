@@ -52,13 +52,12 @@ func NewK8sControlPlane(
 	replicas int,
 ) *K8sControlPlane {
 	name := clusterName + "-" + mode
-	kumactl, _ := NewKumactlOptions(t, name, verbose)
 	return &K8sControlPlane{
 		t:          t,
 		mode:       mode,
 		name:       name,
 		kubeconfig: kubeconfig,
-		kumactl:    kumactl,
+		kumactl:    NewKumactlOptions(t, name, verbose),
 		cluster:    cluster,
 		verbose:    verbose,
 		replicas:   replicas,
@@ -160,26 +159,6 @@ func (c *K8sControlPlane) VerifyKumaGUI() error {
 	)
 }
 
-func (c *K8sControlPlane) GetKumaCPLogs() (string, error) {
-	logs := ""
-
-	pods := c.GetKumaCPPods()
-	if len(pods) < 1 {
-		return "", errors.Errorf("no kuma-cp pods found for logs")
-	}
-
-	for _, p := range pods {
-		log, err := c.cluster.GetPodLogs(p)
-		if err != nil {
-			return "", err
-		}
-
-		logs = logs + "\n >>> " + p.Name + "\n" + log
-	}
-
-	return logs, nil
-}
-
 func (c *K8sControlPlane) PortFwd() PortFwd {
 	return c.portFwd
 }
@@ -218,24 +197,6 @@ func (c *K8sControlPlane) InstallCP(args ...string) (string, error) {
 		c.kumactl.Env = oldEnv // restore kumactl environment
 	}()
 	return c.kumactl.KumactlInstallCP(c.mode, args...)
-}
-
-func (c *K8sControlPlane) InjectDNS(args ...string) error {
-	// store the kumactl environment
-	oldEnv := c.kumactl.Env
-	c.kumactl.Env["KUBECONFIG"] = c.GetKubectlOptions().ConfigPath
-	defer func() {
-		c.kumactl.Env = oldEnv // restore kumactl environment
-	}()
-
-	yaml, err := c.kumactl.KumactlInstallDNS(args...)
-	if err != nil {
-		return err
-	}
-
-	return k8s.KubectlApplyFromStringE(c.t,
-		c.GetKubectlOptions(),
-		yaml)
 }
 
 // A naive implementation to find the URL where Zone CP exposes its API

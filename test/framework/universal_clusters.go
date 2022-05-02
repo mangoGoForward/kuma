@@ -60,6 +60,10 @@ func (cs *UniversalClusters) WithRetries(retries int) Cluster {
 	return cs
 }
 
+func (cs *UniversalClusters) GetKumaCPLogs() (string, error) {
+	panic("not implemented")
+}
+
 func (cs *UniversalClusters) Name() string {
 	panic("not supported")
 }
@@ -168,16 +172,6 @@ func (cs *UniversalClusters) DeleteApp(appname string) error {
 	for name, c := range cs.clusters {
 		if err := c.DeleteApp(appname); err != nil {
 			return errors.Wrapf(err, "delete app %s failed", name)
-		}
-	}
-
-	return nil
-}
-
-func (cs *UniversalClusters) InjectDNS(namespace ...string) error {
-	for name, c := range cs.clusters {
-		if err := c.InjectDNS(namespace...); err != nil {
-			return errors.Wrapf(err, "Injecting DNS on %s failed: %v", name, err)
 		}
 	}
 

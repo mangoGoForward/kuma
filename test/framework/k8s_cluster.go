@@ -47,7 +47,7 @@ type K8sCluster struct {
 
 var _ Cluster = &K8sCluster{}
 
-func NewK8sCluster(t *TestingT, clusterName string, verbose bool) *K8sCluster {
+func NewK8sCluster(t testing.TestingT, clusterName string, verbose bool) *K8sCluster {
 	return &K8sCluster{
 		t:                   t,
 		name:                clusterName,
@@ -736,6 +736,26 @@ func (c *K8sCluster) GetKuma() ControlPlane {
 	return c.controlplane
 }
 
+func (c *K8sCluster) GetKumaCPLogs() (string, error) {
+	logs := ""
+
+	pods := c.GetKuma().(*K8sControlPlane).GetKumaCPPods()
+	if len(pods) < 1 {
+		return "", errors.Errorf("no kuma-cp pods found for logs")
+	}
+
+	for _, p := range pods {
+		log, err := c.GetPodLogs(p)
+		if err != nil {
+			return "", err
+		}
+
+		logs = logs + "\n >>> " + p.Name + "\n" + log
+	}
+
+	return logs, nil
+}
+
 func (c *K8sCluster) VerifyKuma() error {
 	if err := c.controlplane.VerifyKumaGUI(); err != nil {
 		return err
@@ -939,15 +959,6 @@ func (c *K8sCluster) DeleteApp(namespace, appname string) error {
 	}
 
 	return nil
-}
-
-func (c *K8sCluster) InjectDNS(namespace ...string) error {
-	args := []string{}
-	if len(namespace) > 0 {
-		args = append(args, "--namespace", namespace[0])
-	}
-
-	return c.controlplane.InjectDNS(args...)
 }
 
 func (c *K8sCluster) GetTesting() testing.TestingT {

@@ -11,11 +11,9 @@ import (
 	kuma_cmd "github.com/kumahq/kuma/pkg/cmd"
 	"github.com/kumahq/kuma/pkg/config"
 	kuma_cp "github.com/kumahq/kuma/pkg/config/app/kuma-cp"
-	config_core "github.com/kumahq/kuma/pkg/config/core"
 	"github.com/kumahq/kuma/pkg/core/bootstrap"
 	"github.com/kumahq/kuma/pkg/defaults"
 	"github.com/kumahq/kuma/pkg/diagnostics"
-	"github.com/kumahq/kuma/pkg/dns"
 	dp_server "github.com/kumahq/kuma/pkg/dp-server"
 	"github.com/kumahq/kuma/pkg/gc"
 	"github.com/kumahq/kuma/pkg/hds"
@@ -85,76 +83,38 @@ func newRunCmdWithOpts(opts kuma_cmd.RunCmdOpts) *cobra.Command {
 					"minimim-open-files", minOpenFileLimit)
 			}
 
-			switch cfg.Mode {
-			case config_core.Standalone:
-				if err := mads_server.SetupServer(rt); err != nil {
-					runLog.Error(err, "unable to set up Monitoring Assignment server")
-					return err
-				}
-				if err := dns.Setup(rt); err != nil {
-					runLog.Error(err, "unable to set up DNS")
-					return err
-				}
-				if err := xds.Setup(rt); err != nil {
-					runLog.Error(err, "unable to set up XDS")
-					return err
-				}
-				if err := hds.Setup(rt); err != nil {
-					runLog.Error(err, "unable to set up HDS")
-					return err
-				}
-				if err := dp_server.SetupServer(rt); err != nil {
-					runLog.Error(err, "unable to set up DP Server")
-					return err
-				}
-				if err := insights.Setup(rt); err != nil {
-					runLog.Error(err, "unable to set up Insights resyncer")
-					return err
-				}
-				if err := defaults.Setup(rt); err != nil {
-					runLog.Error(err, "unable to set up Defaults")
-					return err
-				}
-			case config_core.Zone:
-				if err := mads_server.SetupServer(rt); err != nil {
-					runLog.Error(err, "unable to set up Monitoring Assignment server")
-					return err
-				}
-				if err := kds_zone.Setup(rt); err != nil {
-					runLog.Error(err, "unable to set up KDS Zone")
-					return err
-				}
-				if err := dns.Setup(rt); err != nil {
-					runLog.Error(err, "unable to set up DNS")
-					return err
-				}
-				if err := xds.Setup(rt); err != nil {
-					runLog.Error(err, "unable to set up XDS")
-					return err
-				}
-				if err := hds.Setup(rt); err != nil {
-					runLog.Error(err, "unable to set up HDS")
-					return err
-				}
-				if err := dp_server.SetupServer(rt); err != nil {
-					runLog.Error(err, "unable to set up DP Server")
-					return err
-				}
-			case config_core.Global:
-				if err := kds_global.Setup(rt); err != nil {
-					runLog.Error(err, "unable to set up KDS Global")
-					return err
-				}
-				if err := insights.Setup(rt); err != nil {
-					runLog.Error(err, "unable to set up Insights resyncer")
-					return err
-				}
-				if err := defaults.Setup(rt); err != nil {
-					runLog.Error(err, "unable to set up Defaults")
-					return err
-				}
+			if err := mads_server.SetupServer(rt); err != nil {
+				runLog.Error(err, "unable to set up Monitoring Assignment server")
+				return err
 			}
-
+			if err := xds.Setup(rt); err != nil {
+				runLog.Error(err, "unable to set up XDS")
+				return err
+			}
+			if err := hds.Setup(rt); err != nil {
+				runLog.Error(err, "unable to set up HDS")
+				return err
+			}
+			if err := dp_server.SetupServer(rt); err != nil {
+				runLog.Error(err, "unable to set up DP Server")
+				return err
+			}
+			if err := insights.Setup(rt); err != nil {
+				runLog.Error(err, "unable to set up Insights resyncer")
+				return err
+			}
+			if err := defaults.Setup(rt); err != nil {
+				runLog.Error(err, "unable to set up Defaults")
+				return err
+			}
+			if err := kds_zone.Setup(rt); err != nil {
+				runLog.Error(err, "unable to set up Zone KDS")
+				return err
+			}
+			if err := kds_global.Setup(rt); err != nil {
+				runLog.Error(err, "unable to set up Global KDS")
+				return err
+			}
 			if err := clusterid.Setup(rt); err != nil {
 				runLog.Error(err, "unable to set up clusterID")
 				return err

@@ -26,7 +26,7 @@ type KumactlOptions struct {
 	Env        map[string]string
 }
 
-func NewKumactlOptions(t testing.TestingT, cpname string, verbose bool) (*KumactlOptions, error) {
+func NewKumactlOptions(t testing.TestingT, cpname string, verbose bool) *KumactlOptions {
 	configPath := os.ExpandEnv(fmt.Sprintf(defaultKumactlConfig, cpname))
 	return &KumactlOptions{
 		t:          t,
@@ -35,7 +35,7 @@ func NewKumactlOptions(t testing.TestingT, cpname string, verbose bool) (*Kumact
 		ConfigPath: configPath,
 		Verbose:    verbose,
 		Env:        map[string]string{},
-	}, nil
+	}
 }
 
 func (k *KumactlOptions) RunKumactl(args ...string) error {
@@ -149,14 +149,6 @@ func (k *KumactlOptions) KumactlInstallCP(mode string, args ...string) (string, 
 	return k.RunKumactlAndGetOutputV(
 		false, // silence the log output of Install
 		cmd...)
-}
-
-func (k *KumactlOptions) KumactlInstallDNS(args ...string) (string, error) {
-	args = append([]string{"install", "dns"}, args...)
-
-	return k.RunKumactlAndGetOutputV(
-		false, // silence the log output of Install
-		args...)
 }
 
 func (k *KumactlOptions) KumactlInstallMetrics() (string, error) {

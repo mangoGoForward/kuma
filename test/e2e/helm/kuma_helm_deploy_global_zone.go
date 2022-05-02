@@ -61,22 +61,12 @@ func ZoneAndGlobalWithHelmChart() {
 				WithHelmOpt("ingress.enabled", "true"),
 			)).
 			Install(NamespaceWithSidecarInjection(TestNamespace)).
-			Install(DemoClientK8s("default")).
+			Install(DemoClientK8s("default", TestNamespace)).
 			Setup(c2)
 		Expect(err).ToNot(HaveOccurred())
 
 		zone = c2.GetKuma()
 		Expect(zone).ToNot(BeNil())
-
-		// then
-		logs1, err := global.GetKumaCPLogs()
-		Expect(err).ToNot(HaveOccurred())
-		Expect(logs1).To(ContainSubstring("\"mode\":\"global\""))
-
-		// and
-		logs2, err := zone.GetKumaCPLogs()
-		Expect(err).ToNot(HaveOccurred())
-		Expect(logs2).To(ContainSubstring("\"mode\":\"zone\""))
 	})
 
 	E2EAfterEach(func() {
