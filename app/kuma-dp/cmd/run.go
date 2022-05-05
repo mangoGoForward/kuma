@@ -235,8 +235,17 @@ func newRunCmd(opts kuma_cmd.RunCmdOpts, rootCtx *RootContext) *cobra.Command {
 			}
 
 			components = append(components, dataplane)
-
-			metricsServer := metrics.New(cfg.Dataplane, bootstrap.GetAdmin().GetAddress().GetSocketAddress().GetPortValue())
+			appsToHijackMetrics := []*metrics.ApplicationMetricsConfig{}
+			if bootstrap.GetNode().GetMetadata().Fields["dataplane.applications.metrics"] != nil {
+				for _, item := range bootstrap.GetNode().GetMetadata().Fields["dataplane.applications.metrics"].GetListValue().Values {
+					test2 := item.GetStructValue()
+					appsToHijackMetrics = append(appsToHijackMetrics, &metrics.ApplicationMetricsConfig{
+						Path: test2.Fields["path"].GetStringValue(),
+						Port: uint32(test2.Fields["port"].GetNumberValue()),
+					})
+				}
+			}
+			metricsServer := metrics.New(cfg.Dataplane, bootstrap.GetAdmin().GetAddress().GetSocketAddress().GetPortValue(), appsToHijackMetrics)
 			components = append(components, metricsServer)
 
 			if err := rootCtx.ComponentManager.Add(components...); err != nil {

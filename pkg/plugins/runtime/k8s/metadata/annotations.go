@@ -78,6 +78,13 @@ const (
 
 	// KumaSidecarTokenVolumeAnnotation allows to specify which volume contains the service account token
 	KumaSidecarTokenVolumeAnnotation = "kuma.io/service-account-token-volume"
+
+	// KumaMetricsPrometheusAggregatePath allows to specify which path for specific app should request for metrics
+	KumaMetricsPrometheusAggregatePath = "prometheus.metrics.kuma.io/aggregate-%s-path"
+	// KumaMetricsPrometheusAggregatePort allows to specify which port for specific app should request for metrics
+	KumaMetricsPrometheusAggregatePort = "prometheus.metrics.kuma.io/aggregate-%s-port"
+	// KumaMetricsPrometheusAggregatePattern allows to retrieve all the apps for which need to get port/path configuration
+	KumaMetricsPrometheusAggregatePattern = "^prometheus.metrics.kuma.io/aggregate-([a-zA-Z0-9-]+)-port$"
 )
 
 // Annotations that are being automatically set by the Kuma Sidecar Injector.

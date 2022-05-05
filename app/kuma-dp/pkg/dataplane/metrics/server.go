@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -21,15 +22,22 @@ var logger = core.Log.WithName("metrics-hijacker")
 
 var _ component.Component = &Hijacker{}
 
-type Hijacker struct {
-	envoyAdminPort uint32
-	socketPath     string
+type ApplicationMetricsConfig struct {
+	Path string
+	Port uint32
 }
 
-func New(dataplane kumadp.Dataplane, envoyAdminPort uint32) *Hijacker {
+type Hijacker struct {
+	socketPath                string
+	envoyAdminPort            uint32
+	appsToHijackMetricsConfig []*ApplicationMetricsConfig
+}
+
+func New(dataplane kumadp.Dataplane, envoyAdminPort uint32, appsToHijackMetricsConfig []*ApplicationMetricsConfig) *Hijacker {
 	return &Hijacker{
-		envoyAdminPort: envoyAdminPort,
-		socketPath:     envoy.MetricsHijackerSocketName(dataplane.Name, dataplane.Mesh),
+		envoyAdminPort:            envoyAdminPort,
+		socketPath:                envoy.MetricsHijackerSocketName(dataplane.Name, dataplane.Mesh),
+		appsToHijackMetricsConfig: appsToHijackMetricsConfig,
 	}
 }
 
@@ -85,11 +93,11 @@ func (s *Hijacker) Start(stop <-chan struct{}) error {
 // The Envoy stats endpoint recognizes the "used_only" and "filter" query
 // parameters. We squash the path to enforce Prometheus metrics format, but
 // forward the query parameters so that the scraper can do partial scrapes.
-func rewriteMetricsURL(port uint32, in *url.URL) string {
+func rewriteMetricsURL(path string, port uint32, in *url.URL) string {
 	u := url.URL{
 		Scheme:   "http",
 		Host:     fmt.Sprintf("127.0.0.1:%d", port),
-		Path:     "/stats/prometheus",
+		Path:     path,
 		RawQuery: in.RawQuery,
 	}
 
@@ -97,7 +105,8 @@ func rewriteMetricsURL(port uint32, in *url.URL) string {
 }
 
 func (s *Hijacker) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
-	resp, err := http.Get(rewriteMetricsURL(s.envoyAdminPort, req.URL))
+	logger.Info("requesting envoy stats")
+	resp, err := http.Get(rewriteMetricsURL("/stats/prometheus", s.envoyAdminPort, req.URL))
 	if err != nil {
 		http.Error(writer, err.Error(), 500)
 		return
@@ -113,6 +122,26 @@ func (s *Hijacker) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	if _, err := writer.Write(buf.Bytes()); err != nil {
 		logger.Error(err, "error while writing the response")
 	}
+
+	for _, app := range s.appsToHijackMetricsConfig {
+		logger.Info("requesting  stats", app, app.Path)
+		resp, err := http.Get(rewriteMetricsURL(app.Path, app.Port, req.URL))
+		if err != nil {
+			http.Error(writer, err.Error(), 500)
+			return
+		}
+		defer resp.Body.Close()
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			http.Error(writer, err.Error(), 500)
+			return
+		}
+		if _, err := writer.Write(bodyBytes); err != nil {
+			logger.Error(err, "error while writing the response")
+		}
+
+	}
+
 }
 
 func (s *Hijacker) NeedLeaderElection() bool {

@@ -55,6 +55,8 @@ func (b *BootstrapHandler) Handle(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	logger.Info("generated config", config)
+
 	bytes, err = proto.ToYAML(config)
 	if err != nil {
 		logger.Error(err, "Could not convert to json")

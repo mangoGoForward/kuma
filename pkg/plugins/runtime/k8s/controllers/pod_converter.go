@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -18,7 +20,8 @@ import (
 )
 
 var (
-	converterLog = core.Log.WithName("discovery").WithName("k8s").WithName("pod-to-dataplane-converter")
+	converterLog          = core.Log.WithName("discovery").WithName("k8s").WithName("pod-to-dataplane-converter")
+	metricsAggregateRegex = regexp.MustCompile(metadata.KumaMetricsPrometheusAggregatePattern)
 )
 
 type PodConverter struct {
@@ -186,13 +189,28 @@ func MetricsFor(pod *kube_core.Pod) (*mesh_proto.MetricsBackend, error) {
 	if err != nil {
 		return nil, err
 	}
-	if path == "" && !exist {
+
+	aggregate, err := MetricsAggregateFor(pod)
+	if err != nil {
+		return nil, err
+	}
+	if path == "" && !exist && aggregate == nil {
 		return nil, nil
 	}
-	cfg := &mesh_proto.PrometheusMetricsBackendConfig{
-		Path: path,
-		Port: port,
+
+	var cfg *mesh_proto.PrometheusMetricsBackendConfig
+	if path == "" && !exist {
+		cfg = &mesh_proto.PrometheusMetricsBackendConfig{
+			Aggregate: aggregate,
+		}
+	} else {
+		cfg = &mesh_proto.PrometheusMetricsBackendConfig{
+			Path:      path,
+			Port:      port,
+			Aggregate: aggregate,
+		}
 	}
+
 	str, err := util_proto.ToStruct(cfg)
 	if err != nil {
 		return nil, err
@@ -201,4 +219,39 @@ func MetricsFor(pod *kube_core.Pod) (*mesh_proto.MetricsBackend, error) {
 		Type: mesh_proto.MetricsPrometheusType,
 		Conf: str,
 	}, nil
+}
+
+func MetricsAggregateFor(pod *kube_core.Pod) ([]*mesh_proto.PrometheusServicesMetricsAggregateConfig, error) {
+	applicationsToScrap := make(map[string]bool)
+	for key := range pod.Annotations {
+		matchedGroups := metricsAggregateRegex.FindStringSubmatch(key)
+		if matchedGroups != nil && len(matchedGroups) == 2 {
+			applicationsToScrap[matchedGroups[1]] = true
+		}
+	}
+	if len(applicationsToScrap) == 0 {
+		return nil, nil
+	}
+
+	var scrapConfiguration []*mesh_proto.PrometheusServicesMetricsAggregateConfig
+	for app := range applicationsToScrap {
+		path, _ := metadata.Annotations(pod.Annotations).GetString(fmt.Sprintf(metadata.KumaMetricsPrometheusAggregatePath, app))
+		port, exist, err := metadata.Annotations(pod.Annotations).GetUint32(fmt.Sprintf(metadata.KumaMetricsPrometheusAggregatePort, app))
+		if err != nil {
+			return nil, err
+		}
+		if path == "" || !exist {
+			return nil, errors.New("path and port need to be specified for metrics scraping")
+		} else {
+			scrapConfiguration = append(
+				scrapConfiguration,
+				&mesh_proto.PrometheusServicesMetricsAggregateConfig{
+					Name: app,
+					Path: path,
+					Port: port,
+				},
+			)
+		}
+	}
+	return scrapConfiguration, nil
 }

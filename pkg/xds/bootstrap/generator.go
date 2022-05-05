@@ -22,6 +22,7 @@ import (
 	"github.com/kumahq/kuma/pkg/core/validators"
 	core_xds "github.com/kumahq/kuma/pkg/core/xds"
 	"github.com/kumahq/kuma/pkg/xds/bootstrap/types"
+
 	// import Envoy protobuf definitions so (un)marshaling Envoy protobuf works in tests (normally it is imported in root.go)
 	envoy_common "github.com/kumahq/kuma/pkg/xds/envoy"
 )
@@ -140,6 +141,28 @@ func (b *bootstrapGenerator) Generate(ctx context.Context, request types.Bootstr
 
 		params.Service = dataplane.Spec.GetIdentifyingService()
 		setAdminPort(dataplane.Spec.GetNetworking().GetAdmin().GetPort())
+		meshResource := core_mesh.NewMeshResource()
+		b.resManager.Get(ctx, meshResource, core_store.GetByKey(dataplane.Meta.GetMesh(), core_model.NoMesh))
+		config, err := dataplane.GetPrometheusEndpoint(meshResource)
+		if err != nil {
+			return nil, err
+		}
+		log.Info("generated config", "config", config)
+		if config != nil {
+			log.Info("is config diff than nil generated config", "config", config)
+			if len(config.GetAggregate()) > 0 {
+				log.Info("has more than 0 aggreagte", "len", len(config.GetAggregate()))
+				appsMetricsConfig := map[string]applicationMetricsConfig{}
+				for _, appConfig := range config.GetAggregate() {
+					appsMetricsConfig[appConfig.GetName()] = applicationMetricsConfig{
+						port: appConfig.Port,
+						path: appConfig.Path,
+					}
+				}
+				params.ApplicationsMetricsConfig = appsMetricsConfig
+			}
+		}
+
 	default:
 		return nil, errors.Errorf("unknown proxy type %v", params.ProxyType)
 	}

@@ -74,7 +74,19 @@ var _ = Describe("bootstrapGenerator", func() {
 
 	BeforeEach(func() {
 		// when
-		err := resManager.Create(context.Background(), core_mesh.NewMeshResource(), store.CreateByKey("mesh", model.NoMesh))
+		err := resManager.Create(context.Background(), &core_mesh.MeshResource{
+			Spec: &mesh_proto.Mesh{
+				Metrics: &mesh_proto.Metrics{
+					EnabledBackend: "prometheus-1",
+					Backends: []*mesh_proto.MetricsBackend{
+						{
+							Name: "prometheus-1",
+							Type: mesh_proto.MetricsPrometheusType,
+						},
+					},
+				},
+			},
+		}, store.CreateByKey("mesh", model.NoMesh))
 		// then
 		Expect(err).ToNot(HaveOccurred())
 	})
@@ -267,6 +279,40 @@ var _ = Describe("bootstrapGenerator", func() {
 				Version:        defaultVersion,
 			},
 			expectedConfigFile: "generator.default-config.kubernetes.ipv6.golden.yaml",
+			hdsEnabled:         false,
+		}),
+		Entry("default config, kubernetes with application metrics", testCase{
+			dpAuthEnabled: true,
+			config: func() *bootstrap_config.BootstrapServerConfig {
+				cfg := bootstrap_config.DefaultBootstrapServerConfig()
+				cfg.Params.XdsHost = "localhost"
+				cfg.Params.XdsPort = 5678
+				return cfg
+			},
+			dataplane: func() *core_mesh.DataplaneResource {
+				dp := defaultDataplane()
+				dp.Spec.Networking.Admin.Port = 1234
+				dp.Spec.Metrics = &mesh_proto.MetricsBackend{
+					Type: mesh_proto.MetricsPrometheusType,
+					Conf: util_proto.MustToStruct(&mesh_proto.PrometheusMetricsBackendConfig{
+						Aggregate: []*mesh_proto.PrometheusServicesMetricsAggregateConfig{
+							{
+								Name: "app1",
+								Port: 123,
+								Path: "/stats",
+							},
+						},
+					}),
+				}
+				return dp
+			},
+			request: types.BootstrapRequest{
+				Mesh:           "mesh",
+				Name:           "name.namespace",
+				DataplaneToken: "token",
+				Version:        defaultVersion,
+			},
+			expectedConfigFile: "generator.metrics-config.kubernetes.golden.yaml",
 			hdsEnabled:         false,
 		}),
 		Entry("backwards compatibility, adminPort in bootstrapRequest", testCase{ // https://github.com/kumahq/kuma/issues/4002

@@ -79,6 +79,8 @@ func (b *remoteBootstrap) Generate(url string, cfg kuma_dp.Config, params Bootst
 			return err
 		}
 
+		log.Info("resp bytes", respBytes)
+
 		switch err {
 		case DpNotFoundErr:
 			log.Info("Dataplane entity is not yet found in the Control Plane. If you are running on Kubernetes, CP is most likely still in the process of converting Pod to Dataplane. If it takes too long, check kuma-cp logs. Retrying.", "backoff", cfg.ControlPlane.Retry.Backoff)
