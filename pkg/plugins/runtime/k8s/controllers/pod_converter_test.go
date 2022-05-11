@@ -250,10 +250,10 @@ var _ = Describe("PodToDataplane(..)", func() {
 			servicesForPod: "18.services-for-pod.yaml",
 			dataplane:      "18.dataplane.yaml",
 		}),
-		Entry("19. Pod with prometheus metrics of other pods", testCase{
-			pod:            "19.pod.yaml",
-			servicesForPod: "19.services-for-pod.yaml",
-			dataplane:      "19.dataplane.yaml",
+		Entry("20. Pod with prometheus metrics of other pods", testCase{
+			pod:            "20.pod.yaml",
+			servicesForPod: "20.services-for-pod.yaml",
+			dataplane:      "20.dataplane.yaml",
 		}),
 	)
 
