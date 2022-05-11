@@ -79,6 +79,12 @@ const (
 	// KumaSidecarTokenVolumeAnnotation allows to specify which volume contains the service account token
 	KumaSidecarTokenVolumeAnnotation = "kuma.io/service-account-token-volume"
 
+	// KumaTransparentProxyingExperimentalEngine enables experimental transparent proxy engine.
+	KumaTransparentProxyingExperimentalEngine = "kuma.io/transparent-proxying-experimental-engine"
+
+	// KumaSidecarDrainTime allows to specify drain time of Kuma DP sidecar.
+	KumaSidecarDrainTime = "kuma.io/sidecar-drain-time"
+
 	// KumaMetricsPrometheusAggregatePath allows to specify which path for specific app should request for metrics
 	KumaMetricsPrometheusAggregatePath = "prometheus.metrics.kuma.io/aggregate-%s-path"
 	// KumaMetricsPrometheusAggregatePort allows to specify which port for specific app should request for metrics
