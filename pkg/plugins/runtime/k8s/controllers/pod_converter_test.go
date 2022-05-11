@@ -21,6 +21,7 @@ import (
 	mesh_k8s "github.com/kumahq/kuma/pkg/plugins/resources/k8s/native/api/v1alpha1"
 	. "github.com/kumahq/kuma/pkg/plugins/runtime/k8s/controllers"
 	. "github.com/kumahq/kuma/pkg/test/matchers"
+	util_proto "github.com/kumahq/kuma/pkg/util/proto"
 	util_yaml "github.com/kumahq/kuma/pkg/util/yaml"
 )
 
@@ -670,14 +671,16 @@ var _ = Describe("MetricsAggregateFor(..)", func() {
 		},
 		Entry("one service", testCase{
 			annotations: map[string]string{
-				"prometheus.metrics.kuma.io/aggregate-my-app-path": "/stats",
-				"prometheus.metrics.kuma.io/aggregate-my-app-port": "123",
+				"prometheus.metrics.kuma.io/aggregate-my-app-path":    "/stats",
+				"prometheus.metrics.kuma.io/aggregate-my-app-port":    "123",
+				"prometheus.metrics.kuma.io/aggregate-my-app-enabled": "false",
 			},
 			expected: []*mesh_proto.PrometheusServicesMetricsAggregateConfig{
 				{
-					Name: "my-app",
-					Path: "/stats",
-					Port: 123,
+					Name:    "my-app",
+					Path:    "/stats",
+					Port:    123,
+					Enabled: util_proto.Bool(false),
 				},
 			},
 		}),
@@ -692,26 +695,29 @@ var _ = Describe("MetricsAggregateFor(..)", func() {
 			},
 			expected: []*mesh_proto.PrometheusServicesMetricsAggregateConfig{
 				{
-					Name: "my-app",
-					Path: "/stats",
-					Port: 123,
+					Name:    "my-app",
+					Path:    "/stats",
+					Port:    123,
+					Enabled: util_proto.Bool(true),
 				},
 				{
-					Name: "my-app-2",
-					Path: "/stats/2",
-					Port: 1234,
+					Name:    "my-app-2",
+					Path:    "/stats/2",
+					Port:    1234,
+					Enabled: util_proto.Bool(true),
 				},
 				{
-					Name: "sidecar",
-					Path: "/metrics",
-					Port: 12345,
+					Name:    "sidecar",
+					Path:    "/metrics",
+					Port:    12345,
+					Enabled: util_proto.Bool(true),
 				},
 			},
 		}),
 	)
 })
 
-var _ = FDescribe("MetricsAggregateFor(..)", func() {
+var _ = Describe("MetricsAggregateFor(..)", func() {
 
 	type testCase struct {
 		annotations map[string]string

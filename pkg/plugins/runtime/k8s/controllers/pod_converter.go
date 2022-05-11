@@ -222,19 +222,19 @@ func MetricsFor(pod *kube_core.Pod) (*mesh_proto.MetricsBackend, error) {
 }
 
 func MetricsAggregateFor(pod *kube_core.Pod) ([]*mesh_proto.PrometheusServicesMetricsAggregateConfig, error) {
-	applicationsToScrap := make(map[string]bool)
+	metricsToAggregateConfig := make(map[string]bool)
 	for key := range pod.Annotations {
 		matchedGroups := metricsAggregateRegex.FindStringSubmatch(key)
 		if matchedGroups != nil && len(matchedGroups) == 2 {
-			applicationsToScrap[matchedGroups[1]] = true
+			metricsToAggregateConfig[matchedGroups[1]] = true
 		}
 	}
-	if len(applicationsToScrap) == 0 {
+	if len(metricsToAggregateConfig) == 0 {
 		return nil, nil
 	}
 
-	var scrapConfiguration []*mesh_proto.PrometheusServicesMetricsAggregateConfig
-	for app := range applicationsToScrap {
+	var aggregateConfig []*mesh_proto.PrometheusServicesMetricsAggregateConfig
+	for app := range metricsToAggregateConfig {
 		path, _ := metadata.Annotations(pod.Annotations).GetString(fmt.Sprintf(metadata.KumaMetricsPrometheusAggregatePath, app))
 		port, exist, err := metadata.Annotations(pod.Annotations).GetUint32(fmt.Sprintf(metadata.KumaMetricsPrometheusAggregatePort, app))
 		if err != nil {
@@ -242,16 +242,26 @@ func MetricsAggregateFor(pod *kube_core.Pod) ([]*mesh_proto.PrometheusServicesMe
 		}
 		if path == "" || !exist {
 			return nil, errors.New("path and port need to be specified for metrics scraping")
-		} else {
-			scrapConfiguration = append(
-				scrapConfiguration,
-				&mesh_proto.PrometheusServicesMetricsAggregateConfig{
-					Name: app,
-					Path: path,
-					Port: port,
-				},
-			)
 		}
+		enabled, exist, err := metadata.Annotations(pod.Annotations).GetEnabled(fmt.Sprintf(metadata.KumaMetricsPrometheusAggregateEnabled, app))
+		if err != nil {
+			return nil, err
+		}
+
+		if exist && !enabled {
+			enabled = false
+		} else {
+			enabled = true
+		}
+		aggregateConfig = append(
+			aggregateConfig,
+			&mesh_proto.PrometheusServicesMetricsAggregateConfig{
+				Name:    app,
+				Path:    path,
+				Port:    port,
+				Enabled: util_proto.Bool(enabled),
+			},
+		)
 	}
-	return scrapConfiguration, nil
+	return aggregateConfig, nil
 }

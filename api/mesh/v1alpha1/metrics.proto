@@ -66,4 +66,7 @@ message PrometheusServicesMetricsAggregateConfig {
   // Path on which a service should expose HTTP endpoint with Prometheus
   // metrics.
   string path = 3;
+
+  // If true then application won't be scrapped. If nil, then it is treated as true.
+  google.protobuf.BoolValue enabled = 4;
 }
