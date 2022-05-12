@@ -149,17 +149,17 @@ func (b *bootstrapGenerator) Generate(ctx context.Context, request types.Bootstr
 			return nil, nil, err
 		}
 		if config != nil && len(config.GetAggregate()) > 0 {
-			aggregateApplicationsMetricsConfig := map[string]aggregateApplicationMetricsConfig{}
+			aggregateConfig := map[string]aggregateMetricsConfig{}
 			for key, appConfig := range config.GetAggregate() {
 				if appConfig.GetEnabled() != nil && !appConfig.GetEnabled().GetValue() {
 					continue
 				}
-				aggregateApplicationsMetricsConfig[key] = aggregateApplicationMetricsConfig{
+				aggregateConfig[key] = aggregateMetricsConfig{
 					port: appConfig.Port,
 					path: appConfig.Path,
 				}
 			}
-			params.AggregateApplicationsMetricsConfig = aggregateApplicationsMetricsConfig
+			params.AggregateMetricsConfig = aggregateConfig
 		}
 
 	default:

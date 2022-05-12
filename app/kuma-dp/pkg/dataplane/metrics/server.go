@@ -25,7 +25,7 @@ var _ component.Component = &Hijacker{}
 
 type MetricsMutator func(in io.Reader, out io.Writer) error
 
-type ApplicationMetricsConfig struct {
+type ApplicationToScrape struct {
 	Name    string
 	Path    string
 	Port    uint32
@@ -33,14 +33,14 @@ type ApplicationMetricsConfig struct {
 }
 
 type Hijacker struct {
-	socketPath                string
-	appsToHijackMetricsConfig []*ApplicationMetricsConfig
+	socketPath           string
+	applicationsToScrape []*ApplicationToScrape
 }
 
-func New(dataplane kumadp.Dataplane, appsToHijackMetricsConfig []*ApplicationMetricsConfig) *Hijacker {
+func New(dataplane kumadp.Dataplane, applicationsToScrape []*ApplicationToScrape) *Hijacker {
 	return &Hijacker{
-		socketPath:                envoy.MetricsHijackerSocketName(dataplane.Name, dataplane.Mesh),
-		appsToHijackMetricsConfig: appsToHijackMetricsConfig,
+		socketPath:           envoy.MetricsHijackerSocketName(dataplane.Name, dataplane.Mesh),
+		applicationsToScrape: applicationsToScrape,
 	}
 }
 
@@ -107,17 +107,16 @@ func rewriteMetricsURL(path string, port uint32, in *url.URL) string {
 }
 
 func (s *Hijacker) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
-	out := make(chan []byte, len(s.appsToHijackMetricsConfig))
+	out := make(chan []byte, len(s.applicationsToScrape))
 	var wg sync.WaitGroup
-	wg.Add(len(s.appsToHijackMetricsConfig))
+	wg.Add(len(s.applicationsToScrape))
 	go func() {
 		wg.Wait()
 		close(out)
 	}()
-	logger.Info("getting metrics for ", "size", len(s.appsToHijackMetricsConfig))
-	for _, app := range s.appsToHijackMetricsConfig {
-		logger.Info("getting metrics for ", "name", app.Name, "path", app.Path, "port", app.Port)
-		go func(app *ApplicationMetricsConfig) {
+
+	for _, app := range s.applicationsToScrape {
+		go func(app *ApplicationToScrape) {
 			defer wg.Done()
 			s.getStats(req.URL, out, app)
 		}(app)
@@ -137,8 +136,7 @@ func (s *Hijacker) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (s *Hijacker) getStats(url *url.URL, out chan []byte, app *ApplicationMetricsConfig) {
-	logger.Info("calling metrics for ", "name", app.Name, "path", app.Path, "port", app.Port)
+func (s *Hijacker) getStats(url *url.URL, out chan []byte, app *ApplicationToScrape) {
 	resp, err := http.Get(rewriteMetricsURL(app.Path, app.Port, url))
 	if err != nil {
 		logger.Error(err, "failed call", "name", app.Name, "path", app.Path, "port", app.Port)

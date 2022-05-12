@@ -295,7 +295,7 @@ var _ = Describe("bootstrapGenerator", func() {
 				dp.Spec.Metrics = &mesh_proto.MetricsBackend{
 					Type: mesh_proto.MetricsPrometheusType,
 					Conf: util_proto.MustToStruct(&mesh_proto.PrometheusMetricsBackendConfig{
-						Aggregate: map[string]*mesh_proto.PrometheusServicesMetricsAggregateConfig{
+						Aggregate: map[string]*mesh_proto.PrometheusAggregateMetricsConfig{
 							"app1": {
 								Port: 123,
 								Path: "/stats",
@@ -442,7 +442,7 @@ Provide CA that was used to sign a certificate used in the control plane by usin
 							Name: "prometheus-1",
 							Type: mesh_proto.MetricsPrometheusType,
 							Conf: util_proto.MustToStruct(&mesh_proto.PrometheusMetricsBackendConfig{
-								Aggregate: map[string]*mesh_proto.PrometheusServicesMetricsAggregateConfig{
+								Aggregate: map[string]*mesh_proto.PrometheusAggregateMetricsConfig{
 									"opa": {
 										Port: 123,
 										Path: "/stats/opa",
@@ -479,7 +479,7 @@ Provide CA that was used to sign a certificate used in the control plane by usin
 				Metrics: &mesh_proto.MetricsBackend{
 					Type: mesh_proto.MetricsPrometheusType,
 					Conf: util_proto.MustToStruct(&mesh_proto.PrometheusMetricsBackendConfig{
-						Aggregate: map[string]*mesh_proto.PrometheusServicesMetricsAggregateConfig{
+						Aggregate: map[string]*mesh_proto.PrometheusAggregateMetricsConfig{
 							"default": {
 								Enabled: util_proto.Bool(false),
 							},

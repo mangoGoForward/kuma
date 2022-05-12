@@ -26,6 +26,7 @@ import (
 	util_net "github.com/kumahq/kuma/pkg/util/net"
 	"github.com/kumahq/kuma/pkg/util/proto"
 	kuma_version "github.com/kumahq/kuma/pkg/version"
+	"github.com/kumahq/kuma/pkg/xds/bootstrap/types"
 )
 
 var runLog = dataplaneLog.WithName("run")
@@ -234,23 +235,7 @@ func newRunCmd(opts kuma_cmd.RunCmdOpts, rootCtx *RootContext) *cobra.Command {
 			}
 
 			components = append(components, dataplane)
-			appsToHijackMetrics := []*metrics.ApplicationMetricsConfig{}
-			if kumaSidecarConfiguration != nil && len(kumaSidecarConfiguration.Metrics.Aggregate) > 0 {
-				for _, item := range kumaSidecarConfiguration.Metrics.Aggregate {
-					appsToHijackMetrics = append(appsToHijackMetrics, &metrics.ApplicationMetricsConfig{
-						Name: item.Name,
-						Path: item.Path,
-						Port: item.Port,
-					})
-				}
-			}
-			appsToHijackMetrics = append(appsToHijackMetrics, &metrics.ApplicationMetricsConfig{
-				Name:    "kuma-sidecar",
-				Path:    "/stats/prometheus",
-				Port:    bootstrap.GetAdmin().GetAddress().GetSocketAddress().GetPortValue(),
-				Mutator: metrics.MergeClusters,
-			})
-			metricsServer := metrics.New(cfg.Dataplane, appsToHijackMetrics)
+			metricsServer := metrics.New(cfg.Dataplane, getApplicationsToScrape(kumaSidecarConfiguration, bootstrap.GetAdmin().GetAddress().GetSocketAddress().GetPortValue()))
 			components = append(components, metricsServer)
 
 			if err := rootCtx.ComponentManager.Add(components...); err != nil {
@@ -313,6 +298,27 @@ func newRunCmd(opts kuma_cmd.RunCmdOpts, rootCtx *RootContext) *cobra.Command {
 	cmd.PersistentFlags().StringVar(&cfg.DNS.ConfigDir, "dns-server-config-dir", cfg.DNS.ConfigDir, "Directory in which DNS Server config will be generated")
 	cmd.PersistentFlags().Uint32Var(&cfg.DNS.PrometheusPort, "dns-prometheus-port", cfg.DNS.PrometheusPort, "A port for exposing Prometheus stats")
 	return cmd
+}
+
+func getApplicationsToScrape(kumaSidecarConfiguration *types.KumaSidecarConfiguration, envoyAdminPort uint32) []*metrics.ApplicationToScrape {
+	applicationsToScrape := []*metrics.ApplicationToScrape{}
+	if kumaSidecarConfiguration != nil && len(kumaSidecarConfiguration.Metrics.Aggregate) > 0 {
+		for _, item := range kumaSidecarConfiguration.Metrics.Aggregate {
+			applicationsToScrape = append(applicationsToScrape, &metrics.ApplicationToScrape{
+				Name: item.Name,
+				Path: item.Path,
+				Port: item.Port,
+			})
+		}
+	}
+	// by default add envoy configuration
+	applicationsToScrape = append(applicationsToScrape, &metrics.ApplicationToScrape{
+		Name:    "envoy",
+		Path:    "/stats/prometheus",
+		Port:    envoyAdminPort,
+		Mutator: metrics.MergeClusters,
+	})
+	return applicationsToScrape
 }
 
 func writeFile(filename string, data []byte, perm os.FileMode) error {

@@ -8,12 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	mesh_proto "github.com/kumahq/kuma/api/mesh/v1alpha1"
-	"github.com/kumahq/kuma/pkg/core"
 	util_proto "github.com/kumahq/kuma/pkg/util/proto"
-)
-
-var (
-	runLog = core.Log.WithName("run")
 )
 
 // Protocol identifies a protocol supported by a service.

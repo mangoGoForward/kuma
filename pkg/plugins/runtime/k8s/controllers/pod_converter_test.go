@@ -251,7 +251,7 @@ var _ = Describe("PodToDataplane(..)", func() {
 			servicesForPod: "19.services-for-pod.yaml",
 			dataplane:      "19.dataplane.yaml",
 		}),
-		Entry("20. Pod with prometheus metrics of other pods", testCase{
+		Entry("20. Pod with configuration of prometheus metrics from other pods", testCase{
 			pod:            "20.pod.yaml",
 			servicesForPod: "20.services-for-pod.yaml",
 			dataplane:      "20.dataplane.yaml",
@@ -651,7 +651,7 @@ var _ = Describe("MetricsAggregateFor(..)", func() {
 
 	type testCase struct {
 		annotations map[string]string
-		expected    map[string]*mesh_proto.PrometheusServicesMetricsAggregateConfig
+		expected    map[string]*mesh_proto.PrometheusAggregateMetricsConfig
 	}
 
 	DescribeTable("should create proper metrics configuration",
@@ -667,15 +667,15 @@ var _ = Describe("MetricsAggregateFor(..)", func() {
 			// expect
 			configuration, err := MetricsAggregateFor(pod)
 			Expect(err).To(BeNil())
-			Expect(configuration).To(ConsistOf(given.expected))
+			Expect(configuration).To(Equal(given.expected))
 		},
-		Entry("one service", testCase{
+		Entry("one service with double tag", testCase{
 			annotations: map[string]string{
 				"prometheus.metrics.kuma.io/aggregate-my-app-path":    "/stats",
 				"prometheus.metrics.kuma.io/aggregate-my-app-port":    "123",
 				"prometheus.metrics.kuma.io/aggregate-my-app-enabled": "false",
 			},
-			expected: map[string]*mesh_proto.PrometheusServicesMetricsAggregateConfig{
+			expected: map[string]*mesh_proto.PrometheusAggregateMetricsConfig{
 				"my-app": {
 					Path:    "/stats",
 					Port:    123,
@@ -683,16 +683,18 @@ var _ = Describe("MetricsAggregateFor(..)", func() {
 				},
 			},
 		}),
-		Entry("more services", testCase{
+		Entry("few services", testCase{
 			annotations: map[string]string{
-				"prometheus.metrics.kuma.io/aggregate-my-app-path":   "/stats",
-				"prometheus.metrics.kuma.io/aggregate-my-app-port":   "123",
-				"prometheus.metrics.kuma.io/aggregate-my-app-2-path": "/stats/2",
-				"prometheus.metrics.kuma.io/aggregate-my-app-2-port": "1234",
-				"prometheus.metrics.kuma.io/aggregate-sidecar-path":  "/metrics",
-				"prometheus.metrics.kuma.io/aggregate-sidecar-port":  "12345",
+				"prometheus.metrics.kuma.io/aggregate-my-app-path":      "/stats",
+				"prometheus.metrics.kuma.io/aggregate-my-app-port":      "123",
+				"prometheus.metrics.kuma.io/aggregate-my-app-2-path":    "/stats/2",
+				"prometheus.metrics.kuma.io/aggregate-my-app-2-port":    "1234",
+				"prometheus.metrics.kuma.io/aggregate-my-app-2-enabled": "true",
+				"prometheus.metrics.kuma.io/aggregate-sidecar-path":     "/metrics",
+				"prometheus.metrics.kuma.io/aggregate-sidecar-port":     "12345",
+				"prometheus.metrics.kuma.io/aggregate-sidecar-enabled":  "false",
 			},
-			expected: map[string]*mesh_proto.PrometheusServicesMetricsAggregateConfig{
+			expected: map[string]*mesh_proto.PrometheusAggregateMetricsConfig{
 				"my-app": {
 					Path:    "/stats",
 					Port:    123,
@@ -706,7 +708,7 @@ var _ = Describe("MetricsAggregateFor(..)", func() {
 				"sidecar": {
 					Path:    "/metrics",
 					Port:    12345,
-					Enabled: util_proto.Bool(true),
+					Enabled: util_proto.Bool(false),
 				},
 			},
 		}),

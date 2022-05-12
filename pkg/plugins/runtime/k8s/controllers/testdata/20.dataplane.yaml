@@ -5,18 +5,18 @@ spec:
   metrics:
     conf:
       aggregate:
-      - enabled: true
-        name: other-container-1
-        path: /metrics
-        port: 1111
-      - enabled: true
-        name: sidecar
-        path: /stats/test
-        port: 12345
-      - enabled: true
-        name: my-app
-        path: /stats
-        port: 1234
+        my-app:
+          enabled: true
+          path: /stats
+          port: 1234
+        other-container-1:
+          enabled: false
+          path: /metrics
+          port: 1111
+        sidecar:
+          enabled: true
+          path: /stats/test
+          port: 12345
     type: prometheus
   networking:
     address: 192.168.0.1

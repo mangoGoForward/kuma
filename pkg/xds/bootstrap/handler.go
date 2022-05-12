@@ -22,14 +22,14 @@ type BootstrapHandler struct {
 }
 
 func (b *BootstrapHandler) Handle(resp http.ResponseWriter, req *http.Request) {
-	bodyBytes, err := io.ReadAll(req.Body)
+	bytes, err := io.ReadAll(req.Body)
 	if err != nil {
 		log.Error(err, "Could not read a request")
 		resp.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	reqParams := types.BootstrapRequest{}
-	if err := json.Unmarshal(bodyBytes, &reqParams); err != nil {
+	if err := json.Unmarshal(bytes, &reqParams); err != nil {
 		log.Error(err, "Could not parse a request")
 		resp.WriteHeader(http.StatusBadRequest)
 		return
@@ -55,7 +55,7 @@ func (b *BootstrapHandler) Handle(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	bootstrapConfig, err := proto.ToYAML(config)
+	bootstrapBytes, err := proto.ToYAML(config)
 	if err != nil {
 		logger.Error(err, "Could not convert to json")
 		resp.WriteHeader(http.StatusInternalServerError)
@@ -65,7 +65,7 @@ func (b *BootstrapHandler) Handle(resp http.ResponseWriter, req *http.Request) {
 	var responseBytes []byte
 	if req.Header.Get("accept") == "application/json" {
 		resp.Header().Set("content-type", "application/json")
-		response := createBootstrapResponse(bootstrapConfig, params)
+		response := createBootstrapResponse(bootstrapBytes, params)
 		responseBytes, err = json.Marshal(response)
 		if err != nil {
 			logger.Error(err, "Could not convert to json")
@@ -74,7 +74,7 @@ func (b *BootstrapHandler) Handle(resp http.ResponseWriter, req *http.Request) {
 		}
 	} else {
 		resp.Header().Set("content-type", "text/x-yaml")
-		responseBytes = bootstrapConfig
+		responseBytes = bootstrapBytes
 	}
 
 	resp.WriteHeader(http.StatusOK)
@@ -114,7 +114,7 @@ func createBootstrapResponse(bootstrap []byte, params *configParameters) *types.
 		Bootstrap: bootstrap,
 	}
 	aggregate := []types.Aggregate{}
-	for key, value := range params.AggregateApplicationsMetricsConfig {
+	for key, value := range params.AggregateMetricsConfig {
 		aggregate = append(aggregate, types.Aggregate{
 			Name: key,
 			Port: value.port,

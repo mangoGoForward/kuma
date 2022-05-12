@@ -19,15 +19,14 @@ var metadataLog = core.Log.WithName("xds-server").WithName("metadata-tracker")
 
 const (
 	// Supported Envoy node metadata fields.
-	fieldDataplaneAdminPort           = "dataplane.admin.port"
-	fieldDataplaneApplicationsMetrics = "dataplane.applications.metrics"
-	fieldDataplaneDNSPort             = "dataplane.dns.port"
-	fieldDataplaneDNSEmptyPort        = "dataplane.dns.empty.port"
-	fieldDataplaneDataplaneResource   = "dataplane.resource"
-	fieldDynamicMetadata              = "dynamicMetadata"
-	fieldDataplaneProxyType           = "dataplane.proxyType"
-	fieldVersion                      = "version"
-	FieldPrefixDependenciesVersion    = "version.dependencies"
+	fieldDataplaneAdminPort         = "dataplane.admin.port"
+	fieldDataplaneDNSPort           = "dataplane.dns.port"
+	fieldDataplaneDNSEmptyPort      = "dataplane.dns.empty.port"
+	fieldDataplaneDataplaneResource = "dataplane.resource"
+	fieldDynamicMetadata            = "dynamicMetadata"
+	fieldDataplaneProxyType         = "dataplane.proxyType"
+	fieldVersion                    = "version"
+	FieldPrefixDependenciesVersion  = "version.dependencies"
 )
 
 // DataplaneMetadata represents environment-specific part of a dataplane configuration.
@@ -45,14 +44,13 @@ const (
 // This way, xDS server will be able to use Envoy node metadata
 // to generate xDS resources that depend on environment-specific configuration.
 type DataplaneMetadata struct {
-	Resource            model.Resource
-	AdminPort           uint32
-	DNSPort             uint32
-	EmptyDNSPort        uint32
-	DynamicMetadata     map[string]string
-	ProxyType           mesh_proto.ProxyType
-	Version             *mesh_proto.Version
-	ApplicationsMetrics []*mesh_proto.PrometheusServicesMetricsAggregateConfig
+	Resource        model.Resource
+	AdminPort       uint32
+	DNSPort         uint32
+	EmptyDNSPort    uint32
+	DynamicMetadata map[string]string
+	ProxyType       mesh_proto.ProxyType
+	Version         *mesh_proto.Version
 }
 
 // GetDataplaneResource returns the underlying DataplaneResource, if present.
@@ -187,20 +185,6 @@ func DataplaneMetadataFromXdsMetadata(xdsMetadata *structpb.Struct) *DataplaneMe
 			}
 		}
 		metadata.DynamicMetadata = dynamicMetadata
-	}
-
-	if value := xdsMetadata.Fields[fieldDataplaneApplicationsMetrics]; value != nil {
-		applicationMetricsConfig := []*mesh_proto.PrometheusServicesMetricsAggregateConfig{}
-		for _, val := range value.GetStructValue().AsMap() {
-			appConfig := mesh_proto.PrometheusServicesMetricsAggregateConfig{}
-			if scrapeConfig := util_proto.MustNewValueForStruct(val); scrapeConfig != nil {
-				if path := scrapeConfig.GetStructValue().Fields["path"].GetStringValue(); path != "" {
-					appConfig.Path = path
-				}
-				appConfig.Port = uint32Metadata(scrapeConfig.GetStructValue(), "port")
-			}
-		}
-		metadata.ApplicationsMetrics = applicationMetricsConfig
 	}
 
 	return &metadata

@@ -33,10 +33,6 @@ node:
   id: mesh.name.namespace
   metadata:
     dataplane.admin.port: "1234"
-    dataplane.applications.metrics:
-    - name: app1
-      path: /stats
-      port: 123
     dataplane.proxyType: dataplane
     version:
       dependencies: {}
