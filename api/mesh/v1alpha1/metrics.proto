@@ -49,24 +49,21 @@ message PrometheusMetricsBackendConfig {
   // is enabled in Mesh. If nil, then it is treated as false.
   google.protobuf.BoolValue skipMTLS = 4;
 
-  // List of services to scrap metrics.
-  repeated PrometheusServicesMetricsAggregateConfig aggregate= 5;
+  // Map with configuration of applications that are going to be scrapped.
+  map<string, PrometheusServicesMetricsAggregateConfig> aggregate= 5;
 }
 
 // PrometheusServicesMetricsAggregateConfig defines endpoints that should be scrapped 
 // by kuma-dp and then expose
 message PrometheusServicesMetricsAggregateConfig {
-  // Name of a service which expose metrics.
-  string name = 1;
-
   // Port on which a service should expose HTTP endpoint with Prometheus
   // metrics.
-  uint32 port = 2;
+  uint32 port = 1;
 
   // Path on which a service should expose HTTP endpoint with Prometheus
   // metrics.
-  string path = 3;
+  string path = 2;
 
   // If true then application won't be scrapped. If nil, then it is treated as true.
-  google.protobuf.BoolValue enabled = 4;
+  google.protobuf.BoolValue enabled = 3;
 }

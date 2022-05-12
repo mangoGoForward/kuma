@@ -191,16 +191,13 @@ func DataplaneMetadataFromXdsMetadata(xdsMetadata *structpb.Struct) *DataplaneMe
 
 	if value := xdsMetadata.Fields[fieldDataplaneApplicationsMetrics]; value != nil {
 		applicationMetricsConfig := []*mesh_proto.PrometheusServicesMetricsAggregateConfig{}
-		for _, val := range value.GetListValue().GetValues() {
+		for _, val := range value.GetStructValue().AsMap() {
 			appConfig := mesh_proto.PrometheusServicesMetricsAggregateConfig{}
-			if scrapeConfig := val.GetStructValue(); scrapeConfig != nil {
-				if path := scrapeConfig.Fields["path"].GetStringValue(); path != "" {
+			if scrapeConfig := util_proto.MustNewValueForStruct(val); scrapeConfig != nil {
+				if path := scrapeConfig.GetStructValue().Fields["path"].GetStringValue(); path != "" {
 					appConfig.Path = path
 				}
-				if name := scrapeConfig.Fields["name"].GetStringValue(); name != "" {
-					appConfig.Name = name
-				}
-				appConfig.Port = uint32Metadata(scrapeConfig, "port")
+				appConfig.Port = uint32Metadata(scrapeConfig.GetStructValue(), "port")
 			}
 		}
 		metadata.ApplicationsMetrics = applicationMetricsConfig

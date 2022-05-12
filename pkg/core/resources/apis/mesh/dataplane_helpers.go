@@ -124,18 +124,13 @@ func (d *DataplaneResource) GetPrometheusEndpoint(mesh *MeshResource) (*mesh_pro
 		return nil, err
 	}
 
-	runLog.Info("get mertics from dp", "dp", d.Spec.GetMetrics().String())
-	runLog.Info("get mertics is prometheus", "isProm", d.Spec.GetMetrics().GetType() == mesh_proto.MetricsPrometheusType)
-	runLog.Info("get mertics is prometheus", "type", d.Spec.GetMetrics().GetType())
 	if d.Spec.GetMetrics().GetType() == mesh_proto.MetricsPrometheusType {
 		dpCfg := mesh_proto.PrometheusMetricsBackendConfig{}
 		if err := util_proto.ToTyped(d.Spec.Metrics.Conf, &dpCfg); err != nil {
 			return nil, err
 		}
-		runLog.Info("get mertics after typed", "dp", dpCfg)
 		proto.Merge(&cfg, &dpCfg)
 	}
-	runLog.Info("get mertics from dp after merge", "cfg", cfg)
 	return &cfg, nil
 }
 

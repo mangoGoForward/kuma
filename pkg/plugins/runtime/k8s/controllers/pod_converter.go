@@ -221,7 +221,7 @@ func MetricsFor(pod *kube_core.Pod) (*mesh_proto.MetricsBackend, error) {
 	}, nil
 }
 
-func MetricsAggregateFor(pod *kube_core.Pod) ([]*mesh_proto.PrometheusServicesMetricsAggregateConfig, error) {
+func MetricsAggregateFor(pod *kube_core.Pod) (map[string]*mesh_proto.PrometheusServicesMetricsAggregateConfig, error) {
 	metricsToAggregateConfig := make(map[string]bool)
 	for key := range pod.Annotations {
 		matchedGroups := metricsAggregateRegex.FindStringSubmatch(key)
@@ -233,7 +233,7 @@ func MetricsAggregateFor(pod *kube_core.Pod) ([]*mesh_proto.PrometheusServicesMe
 		return nil, nil
 	}
 
-	var aggregateConfig []*mesh_proto.PrometheusServicesMetricsAggregateConfig
+	var aggregateConfig map[string]*mesh_proto.PrometheusServicesMetricsAggregateConfig
 	for app := range metricsToAggregateConfig {
 		path, _ := metadata.Annotations(pod.Annotations).GetString(fmt.Sprintf(metadata.KumaMetricsPrometheusAggregatePath, app))
 		port, exist, err := metadata.Annotations(pod.Annotations).GetUint32(fmt.Sprintf(metadata.KumaMetricsPrometheusAggregatePort, app))
@@ -253,15 +253,11 @@ func MetricsAggregateFor(pod *kube_core.Pod) ([]*mesh_proto.PrometheusServicesMe
 		} else {
 			enabled = true
 		}
-		aggregateConfig = append(
-			aggregateConfig,
-			&mesh_proto.PrometheusServicesMetricsAggregateConfig{
-				Name:    app,
-				Path:    path,
-				Port:    port,
-				Enabled: util_proto.Bool(enabled),
-			},
-		)
+		aggregateConfig[app] = &mesh_proto.PrometheusServicesMetricsAggregateConfig{
+			Path:    path,
+			Port:    port,
+			Enabled: util_proto.Bool(enabled),
+		}
 	}
 	return aggregateConfig, nil
 }

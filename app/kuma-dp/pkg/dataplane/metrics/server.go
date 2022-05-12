@@ -22,20 +22,22 @@ var logger = core.Log.WithName("metrics-hijacker")
 
 var _ component.Component = &Hijacker{}
 
+type MetricsMutator func(in io.Reader, out io.Writer) error
+
 type ApplicationMetricsConfig struct {
-	Path string
-	Port uint32
+	Name    string
+	Path    string
+	Port    uint32
+	Mutator MetricsMutator
 }
 
 type Hijacker struct {
 	socketPath                string
-	envoyAdminPort            uint32
 	appsToHijackMetricsConfig []*ApplicationMetricsConfig
 }
 
-func New(dataplane kumadp.Dataplane, envoyAdminPort uint32, appsToHijackMetricsConfig []*ApplicationMetricsConfig) *Hijacker {
+func New(dataplane kumadp.Dataplane, appsToHijackMetricsConfig []*ApplicationMetricsConfig) *Hijacker {
 	return &Hijacker{
-		envoyAdminPort:            envoyAdminPort,
 		socketPath:                envoy.MetricsHijackerSocketName(dataplane.Name, dataplane.Mesh),
 		appsToHijackMetricsConfig: appsToHijackMetricsConfig,
 	}
@@ -67,7 +69,6 @@ func (s *Hijacker) Start(stop <-chan struct{}) error {
 
 	logger.Info("starting Metrics Hijacker Server",
 		"socketPath", fmt.Sprintf("unix://%s", s.socketPath),
-		"adminPort", s.envoyAdminPort,
 	)
 
 	server := &http.Server{
@@ -105,44 +106,62 @@ func rewriteMetricsURL(path string, port uint32, in *url.URL) string {
 }
 
 func (s *Hijacker) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
-	logger.Info("requesting envoy stats")
-	resp, err := http.Get(rewriteMetricsURL("/stats/prometheus", s.envoyAdminPort, req.URL))
-	if err != nil {
-		http.Error(writer, err.Error(), 500)
-		return
-	}
-	defer resp.Body.Close()
-
-	buf := new(bytes.Buffer)
-	if err := MergeClusters(resp.Body, buf); err != nil {
-		http.Error(writer, err.Error(), 500)
-		return
-	}
-
-	if _, err := writer.Write(buf.Bytes()); err != nil {
-		logger.Error(err, "error while writing the response")
-	}
 
 	for _, app := range s.appsToHijackMetricsConfig {
-		logger.Info("requesting  stats", app, app.Path)
+		logger.Info("getting metrics for ", "name", app.Name, "path", app.Path, "port", app.Port)
 		resp, err := http.Get(rewriteMetricsURL(app.Path, app.Port, req.URL))
 		if err != nil {
 			http.Error(writer, err.Error(), 500)
 			return
 		}
 		defer resp.Body.Close()
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			http.Error(writer, err.Error(), 500)
-			return
+
+		var bodyBytes []byte
+		if app.Mutator != nil {
+			buf := new(bytes.Buffer)
+			if err := app.Mutator(resp.Body, buf); err != nil {
+				http.Error(writer, err.Error(), 500)
+				return
+			}
+			bodyBytes = buf.Bytes()
+		} else {
+			bodyBytes, err = io.ReadAll(resp.Body)
+			if err != nil {
+				http.Error(writer, err.Error(), 500)
+				return
+			}
 		}
+
 		if _, err := writer.Write(bodyBytes); err != nil {
 			logger.Error(err, "error while writing the response")
 		}
-
 	}
-
 }
+
+// func (s *Hijacker) getStats(writer http.ResponseWriter, req *http.Request, app *ApplicationMetricsConfig) []byte {
+// 	logger.Info("getting metrics for ", "name", app.Name, "path", app.Path, "port", app.Port)
+// 	resp, err := http.Get(rewriteMetricsURL(app.Path, app.Port, req.URL))
+// 	if err != nil {
+// 		logger.Error(err, "failed call", "name", app.Name, "path", app.Path, "port", app.Port)
+// 	}
+// 	defer resp.Body.Close()
+
+// 	var bodyBytes []byte
+// 	if app.Mutator != nil {
+// 		buf := new(bytes.Buffer)
+// 		if err := app.Mutator(resp.Body, buf); err != nil {
+// 			logger.Error(err, "failed while mutating data", "name", app.Name, "path", app.Path, "port", app.Port)
+// 		}
+// 		bodyBytes = buf.Bytes()
+// 	} else {
+// 		bodyBytes, err = io.ReadAll(resp.Body)
+// 		if err != nil {
+// 			logger.Error(err, "failed while writing", "name", app.Name, "path", app.Path, "port", app.Port)
+// 		}
+// 	}
+
+// 	return bodyBytes
+// }
 
 func (s *Hijacker) NeedLeaderElection() bool {
 	return false

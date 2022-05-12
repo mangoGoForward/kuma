@@ -141,26 +141,25 @@ func (b *bootstrapGenerator) Generate(ctx context.Context, request types.Bootstr
 
 		params.Service = dataplane.Spec.GetIdentifyingService()
 		setAdminPort(dataplane.Spec.GetNetworking().GetAdmin().GetPort())
+
 		meshResource := core_mesh.NewMeshResource()
 		b.resManager.Get(ctx, meshResource, core_store.GetByKey(dataplane.Meta.GetMesh(), core_model.NoMesh))
 		config, err := dataplane.GetPrometheusEndpoint(meshResource)
 		if err != nil {
 			return nil, err
 		}
-		log.Info("generated config", "config", config)
-		if config != nil {
-			log.Info("is config diff than nil generated config", "config", config)
-			if len(config.GetAggregate()) > 0 {
-				log.Info("has more than 0 aggreagte", "len", len(config.GetAggregate()))
-				appsMetricsConfig := map[string]applicationMetricsConfig{}
-				for _, appConfig := range config.GetAggregate() {
-					appsMetricsConfig[appConfig.GetName()] = applicationMetricsConfig{
-						port: appConfig.Port,
-						path: appConfig.Path,
-					}
+		if config != nil && len(config.GetAggregate()) > 0 {
+			aggregateApplicationsMetricsConfig := map[string]aggregateApplicationMetricsConfig{}
+			for key, appConfig := range config.GetAggregate() {
+				if appConfig.GetEnabled() != nil && !appConfig.GetEnabled().GetValue() {
+					continue
 				}
-				params.ApplicationsMetricsConfig = appsMetricsConfig
+				aggregateApplicationsMetricsConfig[key] = aggregateApplicationMetricsConfig{
+					port: appConfig.Port,
+					path: appConfig.Path,
+				}
 			}
+			params.AggregateApplicationsMetricsConfig = aggregateApplicationsMetricsConfig
 		}
 
 	default:
@@ -171,7 +170,6 @@ func (b *bootstrapGenerator) Generate(ctx context.Context, request types.Bootstr
 		return nil, err
 	}
 
-	log.WithValues("params", params).Info("Generating bootstrap config")
 	config, err := genConfig(params)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed creating bootstrap conf")
