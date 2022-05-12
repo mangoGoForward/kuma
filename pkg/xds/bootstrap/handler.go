@@ -22,14 +22,14 @@ type BootstrapHandler struct {
 }
 
 func (b *BootstrapHandler) Handle(resp http.ResponseWriter, req *http.Request) {
-	bytes, err := io.ReadAll(req.Body)
+	bodyBytes, err := io.ReadAll(req.Body)
 	if err != nil {
 		log.Error(err, "Could not read a request")
 		resp.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	reqParams := types.BootstrapRequest{}
-	if err := json.Unmarshal(bytes, &reqParams); err != nil {
+	if err := json.Unmarshal(bodyBytes, &reqParams); err != nil {
 		log.Error(err, "Could not parse a request")
 		resp.WriteHeader(http.StatusBadRequest)
 		return
@@ -49,22 +49,36 @@ func (b *BootstrapHandler) Handle(resp http.ResponseWriter, req *http.Request) {
 	reqParams.Host = hostname
 	logger := log.WithValues("params", reqParams)
 
-	config, err := b.Generator.Generate(req.Context(), reqParams)
+	config, params, err := b.Generator.Generate(req.Context(), reqParams)
 	if err != nil {
 		handleError(resp, err, logger)
 		return
 	}
 
-	bytes, err = proto.ToYAML(config)
+	bootstrapConfig, err := proto.ToYAML(config)
 	if err != nil {
 		logger.Error(err, "Could not convert to json")
 		resp.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	resp.Header().Set("content-type", "text/x-yaml")
+	var responseBytes []byte
+	if req.Header.Get("accept") == "application/json" {
+		resp.Header().Set("content-type", "application/json")
+		response := createBootstrapResponse(bootstrapConfig, params)
+		responseBytes, err = json.Marshal(response)
+		if err != nil {
+			logger.Error(err, "Could not convert to json")
+			resp.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	} else {
+		resp.Header().Set("content-type", "text/x-yaml")
+		responseBytes = bootstrapConfig
+	}
+
 	resp.WriteHeader(http.StatusOK)
-	_, err = resp.Write(bytes)
+	_, err = resp.Write(responseBytes)
 	if err != nil {
 		logger.Error(err, "Error while writing the response")
 		return
@@ -93,4 +107,24 @@ func handleError(resp http.ResponseWriter, err error, logger logr.Logger) {
 	}
 	logger.Error(err, "Could not generate a bootstrap configuration")
 	resp.WriteHeader(http.StatusInternalServerError)
+}
+
+func createBootstrapResponse(bootstrap []byte, params *configParameters) *types.BootstrapResponse {
+	bootstrapConfig := types.BootstrapResponse{
+		Bootstrap: bootstrap,
+	}
+	aggregate := []types.Aggregate{}
+	for key, value := range params.AggregateApplicationsMetricsConfig {
+		aggregate = append(aggregate, types.Aggregate{
+			Name: key,
+			Port: value.port,
+			Path: value.path,
+		})
+	}
+	bootstrapConfig.KumaSidecarConfiguration = types.KumaSidecarConfiguration{
+		Metrics: types.MetricsConfiguration{
+			Aggregate: aggregate,
+		},
+	}
+	return &bootstrapConfig
 }

@@ -24,6 +24,7 @@ import (
 	"github.com/kumahq/kuma/pkg/core/runtime/component"
 	core_xds "github.com/kumahq/kuma/pkg/core/xds"
 	util_net "github.com/kumahq/kuma/pkg/util/net"
+	"github.com/kumahq/kuma/pkg/util/proto"
 	kuma_version "github.com/kumahq/kuma/pkg/version"
 )
 
@@ -209,7 +210,7 @@ func newRunCmd(opts kuma_cmd.RunCmdOpts, rootCtx *RootContext) *cobra.Command {
 			runLog.Info("fetched Envoy version", "version", envoyVersion)
 
 			runLog.Info("generating bootstrap configuration")
-			bootstrap, bootstrapBytes, err := rootCtx.BootstrapGenerator(gracefulCtx, opts.Config.ControlPlane.URL, opts.Config, envoy.BootstrapParams{
+			bootstrap, kumaSidecarConfiguration, err := rootCtx.BootstrapGenerator(gracefulCtx, opts.Config.ControlPlane.URL, opts.Config, envoy.BootstrapParams{
 				Dataplane:       opts.Dataplane,
 				DNSPort:         cfg.DNS.EnvoyDNSPort,
 				EmptyDNSPort:    cfg.DNS.CoreDNSEmptyPort,
@@ -221,7 +222,10 @@ func newRunCmd(opts kuma_cmd.RunCmdOpts, rootCtx *RootContext) *cobra.Command {
 			}
 			runLog.Info("received bootstrap configuration", "adminPort", bootstrap.GetAdmin().GetAddress().GetSocketAddress().GetPortValue())
 
-			opts.BootstrapConfig = bootstrapBytes
+			opts.BootstrapConfig, err = proto.ToYAML(bootstrap)
+			if err != nil {
+				return errors.Errorf("could not convert to yaml. %v", err)
+			}
 			opts.AdminPort = bootstrap.GetAdmin().GetAddress().GetSocketAddress().GetPortValue()
 
 			dataplane, err := envoy.New(opts)
@@ -231,21 +235,20 @@ func newRunCmd(opts kuma_cmd.RunCmdOpts, rootCtx *RootContext) *cobra.Command {
 
 			components = append(components, dataplane)
 			appsToHijackMetrics := []*metrics.ApplicationMetricsConfig{}
-			if bootstrap.GetNode().GetMetadata().Fields["dataplane.applications.metrics"] != nil {
-				for _, item := range bootstrap.GetNode().GetMetadata().Fields["dataplane.applications.metrics"].GetListValue().Values {
-					test2 := item.GetStructValue()
+			if kumaSidecarConfiguration != nil && len(kumaSidecarConfiguration.Metrics.Aggregate) > 0 {
+				for _, item := range kumaSidecarConfiguration.Metrics.Aggregate {
 					appsToHijackMetrics = append(appsToHijackMetrics, &metrics.ApplicationMetricsConfig{
-						Name: test2.Fields["name"].GetStringValue(),
-						Path: test2.Fields["path"].GetStringValue(),
-						Port: uint32(test2.Fields["port"].GetNumberValue()),
+						Name: item.Name,
+						Path: item.Path,
+						Port: item.Port,
 					})
 				}
 			}
 			appsToHijackMetrics = append(appsToHijackMetrics, &metrics.ApplicationMetricsConfig{
-				Name: "kuma-sidecar",
-				Path: "/stats/prometheus",
-				Port: bootstrap.GetAdmin().GetAddress().GetSocketAddress().GetPortValue(),
-				// Mutator: metrics.MergeClusters,
+				Name:    "kuma-sidecar",
+				Path:    "/stats/prometheus",
+				Port:    bootstrap.GetAdmin().GetAddress().GetSocketAddress().GetPortValue(),
+				Mutator: metrics.MergeClusters,
 			})
 			metricsServer := metrics.New(cfg.Dataplane, appsToHijackMetrics)
 			components = append(components, metricsServer)

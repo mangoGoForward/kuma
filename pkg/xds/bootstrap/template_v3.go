@@ -285,17 +285,6 @@ func genConfig(parameters configParameters) (*envoy_bootstrap_v3.Bootstrap, erro
 	if parameters.ProxyType != "" {
 		res.Node.Metadata.Fields["dataplane.proxyType"] = util_proto.MustNewValueForStruct(parameters.ProxyType)
 	}
-	if len(parameters.AggregateApplicationsMetricsConfig) > 0 {
-		var ap []interface{}
-		for k, v := range parameters.AggregateApplicationsMetricsConfig {
-			ap = append(ap, map[string]interface{}{
-				"name": k,
-				"path": v.path,
-				"port": v.port,
-			})
-		}
-		res.Node.Metadata.Fields["dataplane.applications.metrics"] = util_proto.MustNewValueForStruct(ap)
-	}
 	if len(parameters.DynamicMetadata) > 0 {
 		md := make(map[string]interface{}, len(parameters.DynamicMetadata))
 		for k, v := range parameters.DynamicMetadata {

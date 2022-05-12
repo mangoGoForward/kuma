@@ -109,7 +109,7 @@ var _ = Describe("bootstrapGenerator", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			// when
-			bootstrapConfig, err := generator.Generate(context.Background(), given.request)
+			bootstrapConfig, _, err := generator.Generate(context.Background(), given.request)
 
 			// then
 			Expect(err).ToNot(HaveOccurred())
@@ -378,7 +378,7 @@ var _ = Describe("bootstrapGenerator", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			// when
-			_, err = generator.Generate(context.Background(), given.request)
+			_, _, err = generator.Generate(context.Background(), given.request)
 			// then
 			Expect(err).To(HaveOccurred())
 			// and
@@ -510,7 +510,7 @@ Provide CA that was used to sign a certificate used in the control plane by usin
 		Expect(err).ToNot(HaveOccurred())
 
 		// when
-		bootstrapConfig, err := generator.Generate(context.Background(), types.BootstrapRequest{
+		bootstrapConfig, _, err := generator.Generate(context.Background(), types.BootstrapRequest{
 			Mesh:           "metrics",
 			Name:           "name.namespace",
 			DataplaneToken: "token",
