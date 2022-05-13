@@ -71,10 +71,10 @@ func TestConformance(t *testing.T) {
 	}
 
 	conformanceSuite := suite.New(suite.Options{
-		Client:           client,
-		GatewayClassName: "kuma",
-		Cleanup:          true,
-		Debug:            false,
+		Client:               client,
+		GatewayClassName:     "kuma",
+		CleanupBaseResources: true,
+		Debug:                false,
 		NamespaceLabels: map[string]string{
 			metadata.KumaSidecarInjectionAnnotation: metadata.AnnotationTrue,
 		},
